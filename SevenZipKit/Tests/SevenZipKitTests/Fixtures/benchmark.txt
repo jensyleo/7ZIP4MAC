@@ -1,0 +1,26 @@
+
+7-Zip (z) 26.02 (arm64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-06-25
+ 64-bit arm_v:8.5-A locale=en_US.UTF-8 Threads:10 OPEN_MAX:1048576, ASM
+
+ mt2
+Compiler:  CLANG 21.0.0 ver:Apple LLVM 21.0.0 (clang-2100.0.123.102) GCC 4.2.1 : CRYPTO SHA2 AES CRC32 UNALIGNED
+Darwin : 25.5.0 : Darwin Kernel Version 25.5.0
+PageSize:16KB
+Apple M4 10C10T
+
+1T CPU Freq (MHz):  3143  3547  4155  4357  4350  4370  4363
+
+RAM size:   16384 MB,  # CPU hardware threads:  10
+RAM usage:    444 MB,  # Benchmark threads:      2
+
+                       Compressing  |                  Decompressing
+Dict     Speed Usage    R/U Rating  |      Speed Usage    R/U Rating
+         KiB/s     %   MIPS   MIPS  |      KiB/s     %   MIPS   MIPS
+
+22:      28472   178  15565  27698  |     238919   199  10239  20399
+23:      27899   193  14758  28426  |     238123   199  10332  20612
+24:      25739   191  14496  27676  |     232712   199  10247  20430
+25:      24261   189  14643  27700  |     226954   199  10147  20200
+----------------------------------  | ------------------------------
+Avr:     26593   188  14865  27875  |     234177   199  10241  20410
+Tot:             193  12553  24143

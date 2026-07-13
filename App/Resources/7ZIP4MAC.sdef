@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="7ZIP4MAC Terminology">
+	<suite name="7ZIP4MAC Suite" code="SZsu" description="Commands to compress and extract archives with 7ZIP4MAC.">
+
+		<command name="compress" code="SZcocmpr" description="Create an archive from one or more files or folders.">
+			<cocoa class="CompressScriptCommand"/>
+			<direct-parameter type="file" list="yes" description="The files or folders to compress."/>
+			<parameter name="to" code="dest" type="file" description="The archive file to create.">
+				<cocoa key="destination"/>
+			</parameter>
+			<parameter name="password" code="pass" type="text" optional="yes" description="Optional password to encrypt the archive with.">
+				<cocoa key="password"/>
+			</parameter>
+			<result type="file" description="The archive file that was created."/>
+		</command>
+
+		<command name="extract" code="SZcoextr" description="Extract an archive's contents into a folder.">
+			<cocoa class="ExtractScriptCommand"/>
+			<direct-parameter type="file" description="The archive to extract."/>
+			<parameter name="to" code="dest" type="file" description="The folder to extract into.">
+				<cocoa key="destination"/>
+			</parameter>
+			<parameter name="password" code="pass" type="text" optional="yes" description="Password for an encrypted archive.">
+				<cocoa key="password"/>
+			</parameter>
+			<result type="file" description="The destination folder."/>
+		</command>
+
+	</suite>
+</dictionary>
