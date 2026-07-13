@@ -1,0 +1,28 @@
+# Build artifacts
+build/
+DerivedData/
+.build/
+*.o
+*.lo
+*.la
+*.hmap
+*.dia
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# Xcode user-specific state
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# macOS
+.DS_Store
