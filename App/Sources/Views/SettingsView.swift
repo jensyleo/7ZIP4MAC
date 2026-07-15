@@ -231,6 +231,14 @@ struct SettingsView: View {
                 Text("The dialog offers a “Show in Finder” button. Errors are always shown regardless.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                Picker("If a file already exists", selection: $settings.defaultOverwritePolicy) {
+                    ForEach(ExtractionRequest.OverwritePolicy.allCases) { policy in
+                        Text(policy.displayName).tag(policy)
+                    }
+                }
+                Text("“Rename Extracted File” keeps the existing file and gives the newly extracted one a different name instead.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
             Section {
                 Toggle("Reveal in Finder when finished", isOn: $settings.revealInFinderWhenDone)

@@ -31,6 +31,11 @@ public final class AppSettings {
         didSet { defaults.set(extractIntoSubfolder, forKey: Keys.subfolder) }
     }
 
+    /// How extraction handles files that already exist at the destination.
+    public var defaultOverwritePolicy: ExtractionRequest.OverwritePolicy {
+        didSet { defaults.set(defaultOverwritePolicy.rawValue, forKey: Keys.overwritePolicy) }
+    }
+
     /// Whether to reveal the result in Finder after extracting or creating.
     public var revealInFinderWhenDone: Bool {
         didSet { defaults.set(revealInFinderWhenDone, forKey: Keys.reveal) }
@@ -127,6 +132,8 @@ public final class AppSettings {
         self.defaultEncryptFileNames = defaults.bool(forKey: Keys.encryptNames)
         // Default these two "on" when unset (first launch).
         self.extractIntoSubfolder = defaults.object(forKey: Keys.subfolder) as? Bool ?? true
+        self.defaultOverwritePolicy = (defaults.string(forKey: Keys.overwritePolicy)
+            .flatMap(ExtractionRequest.OverwritePolicy.init(rawValue:))) ?? .overwrite
         self.revealInFinderWhenDone = defaults.object(forKey: Keys.reveal) as? Bool ?? true
         // Off by default: extraction finishes quietly, no completion dialog.
         self.confirmAfterExtraction = defaults.bool(forKey: Keys.confirmExtraction)
@@ -155,6 +162,7 @@ public final class AppSettings {
         static let level = "defaultLevel"
         static let encryptNames = "defaultEncryptFileNames"
         static let subfolder = "extractIntoSubfolder"
+        static let overwritePolicy = "defaultOverwritePolicy"
         static let reveal = "revealInFinderWhenDone"
         static let confirmExtraction = "confirmAfterExtraction"
         static let showHidden = "showHiddenEntries"

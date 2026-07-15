@@ -3,10 +3,20 @@ import Foundation
 /// Describes an extraction to perform.
 public struct ExtractionRequest: Sendable, Equatable {
     /// How to handle files that already exist at the destination.
-    public enum OverwritePolicy: Sendable, Equatable {
+    public enum OverwritePolicy: String, Sendable, Equatable, CaseIterable, Identifiable {
         case overwrite
         case skip
         case rename
+
+        public var id: String { rawValue }
+
+        public var displayName: String {
+            switch self {
+            case .overwrite: return "Overwrite"
+            case .skip: return "Skip"
+            case .rename: return "Rename Extracted File"
+            }
+        }
 
         /// The corresponding `7zz` switch.
         var switchArgument: String {
