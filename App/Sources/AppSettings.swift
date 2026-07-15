@@ -64,6 +64,22 @@ public final class AppSettings {
         didSet { defaults.set(Array(associatedFormatKeys), forKey: Keys.associations) }
     }
 
+    /// The default-handler app path recorded for each UTI *before* 7ZIP4MAC
+    /// took it over, keyed by `AssociableFormat.utTypeIdentifier`. Captured
+    /// once at association time (never overwritten by a later re-association)
+    /// so the uninstaller can hand each type back to whatever opened it
+    /// before, instead of leaving the assignment dangling on a deleted app.
+    public var originalHandlerPaths: [String: String] {
+        didSet { defaults.set(originalHandlerPaths, forKey: Keys.originalHandlers) }
+    }
+
+    /// Whether the app has already sent the user to Settings ▸ File Types
+    /// once, on first launch. Guards a one-time nudge — it should never fire
+    /// again after that first appearance, even if the user never acts on it.
+    public var hasShownFileTypesOnboarding: Bool {
+        didSet { defaults.set(hasShownFileTypesOnboarding, forKey: Keys.fileTypesOnboardingShown) }
+    }
+
     /// Whether the `compress`/`extract` AppleScript commands (`7ZIP4MAC.sdef`)
     /// actually run when invoked. Off by default: AppleScript exposes a
     /// scripting surface any script/app on the Mac can call unannounced, so
@@ -121,6 +137,8 @@ public final class AppSettings {
         // behavior, so they default off and require an explicit opt-in.
         self.associatedFormatKeys = (defaults.array(forKey: Keys.associations) as? [String])
             .map(Set.init) ?? AssociableFormat.allKeys.subtracting(["iso", "dmg", "pkg"])
+        self.originalHandlerPaths = (defaults.dictionary(forKey: Keys.originalHandlers) as? [String: String]) ?? [:]
+        self.hasShownFileTypesOnboarding = defaults.bool(forKey: Keys.fileTypesOnboardingShown)
         // Automation is opt-in: off by default when unset.
         self.appleScriptAutomationEnabled = defaults.bool(forKey: Keys.appleScriptEnabled)
         self.shortcutsAutomationEnabled = defaults.bool(forKey: Keys.shortcutsEnabled)
@@ -141,6 +159,8 @@ public final class AppSettings {
         static let confirmExtraction = "confirmAfterExtraction"
         static let showHidden = "showHiddenEntries"
         static let associations = "associatedFormatKeys"
+        static let originalHandlers = "originalHandlerPaths"
+        static let fileTypesOnboardingShown = "hasShownFileTypesOnboarding"
         static let appleScriptEnabled = "appleScriptAutomationEnabled"
         static let shortcutsEnabled = "shortcutsAutomationEnabled"
         static let notifyOnAdd = "notifyOnAdd"

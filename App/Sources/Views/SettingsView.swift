@@ -6,6 +6,12 @@ struct SettingsView: View {
     @Bindable var settings: AppSettings
     @Bindable var profileStore: ProfileStore
     @State private var editingProfile: ProfileTarget?
+    @State private var selectedTab: Tab = .general
+    @State private var showRecommendedConfirm = false
+
+    private enum Tab: Hashable {
+        case general, compression, profiles, fileTypes, automation
+    }
 
     /// What `profilesTab`'s sheet is showing: a brand-new profile, or an
     /// existing one to view/edit. Wrapped so `.sheet(item:)` (which needs
@@ -28,20 +34,31 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(Tab.general)
             compressionTab
                 .tabItem { Label("Compression", systemImage: "archivebox") }
+                .tag(Tab.compression)
             profilesTab
                 .tabItem { Label("Profiles", systemImage: "slider.horizontal.3") }
+                .tag(Tab.profiles)
             associationsTab
                 .tabItem { Label("File Types", systemImage: "doc.badge.gearshape") }
+                .tag(Tab.fileTypes)
             automationTab
                 .tabItem { Label("Automation", systemImage: "wand.and.stars") }
+                .tag(Tab.automation)
         }
         .frame(width: 460)
         .padding(.vertical, 8)
+        .onAppear {
+            if !settings.hasShownFileTypesOnboarding {
+                settings.hasShownFileTypesOnboarding = true
+                selectedTab = .fileTypes
+            }
+        }
     }
 
     // MARK: - Automation
@@ -80,10 +97,21 @@ struct SettingsView: View {
                 Text("macOS asks you to confirm each format individually — turning one on (or using “Associate All”) shows a system dialog per format (“Do you want .zip files to open with 7ZIP4MAC?”). There's no way to un-associate a format from here; turning a toggle off just stops it from being offered — change the default back via Finder ▸ Get Info ▸ Open With if needed.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                Text("If an icon in Finder doesn't update right after associating, that's Finder's own icon cache, not a stray association — relaunching Finder (⌥-right-click its Dock icon ▸ Relaunch, or `killall Finder` in Terminal) usually fixes it; if it still doesn't, restarting the Mac reliably clears it.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                 HStack {
+                    Button("Associate Recommended Files…") { showRecommendedConfirm = true }
+                        .buttonStyle(.borderedProminent)
                     Button("Associate All…") { setAll(true) }
                     Button("Clear Toggles") { setAll(false) }
                     Spacer()
+                }
+                .alert("Associate Recommended Files?", isPresented: $showRecommendedConfirm) {
+                    Button("Associate", role: .none) { associateRecommended() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("macOS will show a confirmation dialog for each format, one after another — expect a lot of system prompts. Accept each one to make 7ZIP4MAC the default for that format.")
                 }
             }
             ForEach(AssociableFormat.Tier.allCases, id: \.self) { tier in
@@ -109,7 +137,7 @@ struct SettingsView: View {
             set: { isOn in
                 if isOn {
                     settings.associatedFormatKeys.insert(format.key)
-                    Task { await FileAssociationService.associate(format) }
+                    Task { await FileAssociationService.associate(format, settings: settings) }
                 } else {
                     settings.associatedFormatKeys.remove(format.key)
                 }
@@ -117,10 +145,24 @@ struct SettingsView: View {
         )
     }
 
+    /// Associates every format that's "recommended" by default — i.e. every
+    /// toggle that starts on (everything except ISO/DMG/PKG, which override
+    /// macOS's own mount/install behavior). Runs the real association call
+    /// for each one even if its toggle already shows "on", since a toggle
+    /// merely reading "on" (the initial default) never by itself made the
+    /// system dialog/actual handler-switch happen — only turning a toggle
+    /// off-then-on, or this button, actually calls `FileAssociationService`.
+    private func associateRecommended() {
+        let recommended = AssociableFormat.allKeys.subtracting(["iso", "dmg", "pkg"])
+        settings.associatedFormatKeys = recommended
+        let formats = AssociableFormat.all.filter { recommended.contains($0.key) }
+        Task { await FileAssociationService.associate(all: formats, settings: settings) }
+    }
+
     private func setAll(_ on: Bool) {
         if on {
             settings.associatedFormatKeys = AssociableFormat.allKeys
-            Task { await FileAssociationService.associate(all: AssociableFormat.all) }
+            Task { await FileAssociationService.associate(all: AssociableFormat.all, settings: settings) }
         } else {
             settings.associatedFormatKeys = []
         }

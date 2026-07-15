@@ -16,6 +16,7 @@ struct SevenZip4MacApp: App {
     @State private var recents = RecentsStore()
 
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     init() {
         SingleInstance.enforceOrExit()
@@ -26,17 +27,32 @@ struct SevenZip4MacApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        // A single `Window`, not `WindowGroup`: every window would share the
+        // exact same `ArchiveViewModel` anyway (there's no per-window state),
+        // so a second window can never show anything different — it can only
+        // ever mirror the first. `WindowGroup` doesn't know that and opens a
+        // brand new window whenever Finder delivers an "open this file" event
+        // while the app is already running, producing two windows that both
+        // render the same (shared) freshly opened archive. `Window` guarantees
+        // there is only ever one, so opening a file while running just routes
+        // straight to the existing window instead.
+        Window("7ZIP4MAC", id: "main") {
             ContentView(viewModel: viewModel, compression: compression,
                         settings: settings, profileStore: profileStore, recents: recents)
-                .onAppear { viewModel.onArchiveOpened = { recents.record($0) } }
-                // Deliberately NOT auto-associating on first launch: macOS
-                // shows a real confirmation dialog per format ("Do you want
-                // .zip files to open with 7ZIP4MAC or keep using Archive
-                // Utility?"), and firing all 32 at once on first launch would
-                // ambush the user with a stack of system dialogs they didn't
-                // ask for. Association only happens when the user explicitly
-                // acts in Settings ▸ File Types (a toggle or "Associate All").
+                .onAppear {
+                    viewModel.onArchiveOpened = { recents.record($0) }
+                    // Point the user at Settings ▸ File Types once, on first
+                    // launch — but never associate anything automatically:
+                    // macOS shows a real confirmation dialog per format ("Do
+                    // you want .zip files to open with 7ZIP4MAC or keep using
+                    // Archive Utility?"), and firing all of them at once would
+                    // ambush the user with a stack of system dialogs they
+                    // didn't ask for. The "Associate Recommended Files…"
+                    // button there warns about that before doing anything.
+                    if !settings.hasShownFileTypesOnboarding {
+                        openSettings()
+                    }
+                }
         }
         .windowToolbarStyle(.unified)
         .commands {

@@ -6,7 +6,7 @@ import AppKit
 @MainActor
 enum Uninstaller {
 
-    static func confirmAndUninstall() {
+    static func confirmAndUninstall(settings: AppSettings) {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = "Uninstall 7ZIP4MAC?"
@@ -17,13 +17,20 @@ enum Uninstaller {
         alert.addButton(withTitle: "Uninstall")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        perform()
+        Task { await perform(settings: settings) }
     }
 
-    private static func perform() {
+    private static func perform(settings: AppSettings) async {
         let bundleID = Bundle.main.bundleIdentifier ?? "com.jensyleo.sevenzip4mac"
         let home = FileManager.default.homeDirectoryForCurrentUser
         let fm = FileManager.default
+
+        // 0. Hand every format this app associated itself with back to
+        //    whatever opened it before — the default-handler assignment is
+        //    keyed by bundle identifier, not by whether the app still exists
+        //    on disk, so without this it dangles on a deleted app forever
+        //    (confirmed: `lsregister -u` in step 3 does NOT clear it).
+        await FileAssociationService.restoreOriginals(settings: settings)
 
         // 1. Reset Privacy & Security (TCC) grants, saved state and caches.
         runToCompletion("/usr/bin/tccutil", ["reset", "All", bundleID])
