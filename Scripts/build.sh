@@ -58,8 +58,16 @@ sleep 0.3
 rm -rf "$BUILD_DIR/$APP_NAME.app"          # legacy dev copy, if present
 rm -rf "$INSTALL_APP"
 cp -R "$BUILT_APP" "$INSTALL_APP"
-# Unregister the DerivedData product and register only the installed copy.
+# Unregistering the DerivedData product isn't enough on its own: macOS's
+# background LaunchServices/Spotlight scanning periodically rediscovers and
+# re-registers *any* .app bundle it finds on disk, regardless of a prior
+# `-u` call — which silently turns it back into an alternate handler for
+# every format this app is associated with (confirmed: this is what made
+# file associations survive pointing at a stray dev build after a real
+# uninstall). The only reliable fix is to not leave a second real .app
+# bundle on disk at all.
 "$LSREGISTER" -u "$BUILT_APP" >/dev/null 2>&1 || true
+rm -rf "$DERIVED/Build/Products/Release/$APP_NAME.app"
 "$LSREGISTER" -f "$INSTALL_APP" >/dev/null 2>&1 || true
 
 echo "==> Verifying signature"

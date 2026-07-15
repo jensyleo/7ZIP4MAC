@@ -340,7 +340,7 @@ struct ContentView: View {
         ToolbarItem {
             Menu {
                 Button("Uninstall 7ZIP4MAC…", role: .destructive) {
-                    Uninstaller.confirmAndUninstall()
+                    Uninstaller.confirmAndUninstall(settings: settings)
                 }
             } label: {
                 Label("More", systemImage: "ellipsis.circle")

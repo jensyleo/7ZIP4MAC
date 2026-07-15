@@ -30,6 +30,12 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 - AppleScript and Shortcuts/Siri automation (both off by default — enable in
   Settings ▸ Automation).
 
+> **Note:** after associating a format (or uninstalling), Finder's icon for
+> already-existing files of that type can take a while to refresh — that's
+> Finder's own icon cache, not a broken association. Relaunching Finder
+> (⌥-right-click its Dock icon ▸ Relaunch, or `killall Finder` in Terminal)
+> usually fixes it; if it doesn't, restarting the Mac reliably clears it.
+
 ## Architecture
 
 Strict MVVM with a clean separation between UI, logic and the engine:
