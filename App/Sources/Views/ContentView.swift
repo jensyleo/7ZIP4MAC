@@ -166,18 +166,23 @@ struct ContentView: View {
     /// Quick Look. Folders are skipped — Quick Look has nothing useful to show.
     func performQuickLook() {
         guard let archiveURL = viewModel.archiveURL else { return }
-        let entry = viewModel.visibleEntries.first { selection.contains($0.id) && !$0.isDirectory }
-        guard let entry else { return }
+        let entries = viewModel.visibleEntries.filter { selection.contains($0.id) && !$0.isDirectory }
+        guard !entries.isEmpty else { return }
         let password = viewModel.sessionPassword
         Task {
-            do {
-                let url = try await DragOut.extract(
-                    entryPath: entry.path, archiveURL: archiveURL, password: password
-                )
-                QuickLookPreviewer.shared.preview(urls: [url])
-            } catch {
-                ArchiveLog.ui.error("Quick Look failed for \(entry.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            var urls: [URL] = []
+            for entry in entries {
+                do {
+                    let url = try await DragOut.extract(
+                        entryPath: entry.path, archiveURL: archiveURL, password: password
+                    )
+                    urls.append(url)
+                } catch {
+                    ArchiveLog.ui.error("Quick Look failed for \(entry.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
             }
+            guard !urls.isEmpty else { return }
+            QuickLookPreviewer.shared.preview(urls: urls)
         }
     }
 
@@ -391,7 +396,8 @@ struct ContentView: View {
         let wholeArchive = paths.isEmpty
         viewModel.extract(into: folder, selectedPaths: paths,
                           intoSubfolder: wholeArchive && settings.extractIntoSubfolder,
-                          flattenPaths: !wholeArchive && !selectionHasFolder)
+                          flattenPaths: !wholeArchive && !selectionHasFolder,
+                          overwritePolicy: settings.defaultOverwritePolicy)
     }
 
     private func testArchiveOrSelection() {

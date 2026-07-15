@@ -232,7 +232,13 @@ public final class ArchiveViewModel {
     /// Extracts the loaded archive into `folder`, creating a subfolder named
     /// after the archive. When `selectedPaths` is non-empty, only those entries
     /// are extracted.
-    public func extract(into folder: URL, selectedPaths: [String] = [], intoSubfolder: Bool = true, flattenPaths: Bool = false) {
+    public func extract(
+        into folder: URL,
+        selectedPaths: [String] = [],
+        intoSubfolder: Bool = true,
+        flattenPaths: Bool = false,
+        overwritePolicy: ExtractionRequest.OverwritePolicy = .overwrite
+    ) {
         guard case .loaded(let archive) = state else { return }
         extractTask?.cancel()
         extractionState = .running(.zero)
@@ -249,7 +255,7 @@ public final class ArchiveViewModel {
             destinationURL: destination,
             password: sessionPassword,
             selectedPaths: selectedPaths,
-            overwritePolicy: .overwrite,
+            overwritePolicy: overwritePolicy,
             totalUncompressedSize: total,
             flattenPaths: flattenPaths
         )

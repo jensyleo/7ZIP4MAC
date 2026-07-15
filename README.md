@@ -86,6 +86,18 @@ The app is installed to `/Applications/7ZIP4MAC.app`.
 > signature is needed to distribute it without a Gatekeeper prompt on other
 > machines.
 
+## Roadmap
+
+Not currently planned, but kept in mind for a future version:
+
+- **Auto-update** via Sparkle (appcast feed, EdDSA-signed updates).
+- **Spotlight indexing** of archive contents (a custom `.mdimporter`), so
+  Spotlight can find files *inside* an archive, not just the archive itself.
+- **Finder Sync extension** ("Compress with 7ZIP4MAC" in the right-click menu)
+  — built once, then removed: macOS requires a paid Apple Developer ID
+  signature for `pluginkit` to accept a Finder Sync extension at all, which
+  an ad-hoc-signed build doesn't have. Revisiting this needs a Developer ID.
+
 ## License
 
 Application code: [GNU GPL v3.0](LICENSE) © 2026 Jensy Leonardo Martínez Cruz.
