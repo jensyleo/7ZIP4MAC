@@ -35,7 +35,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jensyleo.sevenzip4mac
         PRODUCT_NAME: 7ZIP4MAC
-        MARKETING_VERSION: "1.2.0"
+        MARKETING_VERSION: "1.2.1"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
