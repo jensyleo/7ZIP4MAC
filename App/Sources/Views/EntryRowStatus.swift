@@ -1,8 +1,8 @@
 import SwiftUI
 import SevenZipKit
 
-/// Visual status of an archive entry row, mirroring TCPV4MAC's row-coloring
-/// convention: a small, meaningful set of tints rather than one per property.
+/// Visual status of an archive entry row: a small, meaningful set of tints
+/// rather than one per property.
 enum EntryRowStatus: CaseIterable {
     case encrypted
     case folder
