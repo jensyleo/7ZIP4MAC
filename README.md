@@ -14,7 +14,9 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
   rar, iso, cab, cpio, arj, lzh, wim, rpm, deb, chm, and more) with hierarchical
   folder navigation, sortable columns, and real per-file-type icons.
 - **Extract** the whole archive or a selection, with live progress
-  (percent/speed/ETA) and cancellation.
+  (percent/speed/ETA), cancellation, and a configurable policy for files that
+  already exist at the destination (Overwrite / Skip / Rename Extracted File —
+  Settings ▸ General).
 - **Create archives** (7z / ZIP / TAR) with a chosen compression level, optional
   password + filename encryption, split volumes, and built-in or custom
   compression profiles.
@@ -23,12 +25,14 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 - **Password-protected archives**: the password is asked for and kept only in
   memory for that session (never written to disk); the prompt caps out at 3
   attempts before resetting the window.
-- **Drag entries out to Finder** or preview them in place with **Quick Look**
-  (Space bar).
+- **Drag an entry out to Finder** or preview it (or several selected entries,
+  with arrow-through navigation) in place with **Quick Look** (Space bar).
 - **Test** an archive's integrity, run a **compression benchmark**, and browse
   recently opened archives.
 - File-type associations (Settings ▸ File Types) to make 7ZIP4MAC the default
-  handler for the formats it supports.
+  handler for the formats it supports — including an "Associate Recommended
+  Files…" button that does the common ones in one action (after a warning:
+  macOS confirms each format individually).
 - AppleScript and Shortcuts/Siri automation (both off by default — enable in
   Settings ▸ Automation).
 
@@ -37,6 +41,12 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 > Finder's own icon cache, not a broken association. Relaunching Finder
 > (⌥-right-click its Dock icon ▸ Relaunch, or `killall Finder` in Terminal)
 > usually fixes it; if it doesn't, restarting the Mac reliably clears it.
+>
+> **Known limitation:** dragging out more than one selected entry at a time
+> only carries a single file to Finder — `SwiftUI.Table` has no built-in way
+> to bundle a multi-selection into one drag session (unlike `List`). Dragging
+> a single entry works normally; multi-item drag-out needs a custom AppKit
+> drag source and is left for a future version.
 
 ## Architecture
 
