@@ -42,12 +42,15 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 > (⌥-right-click its Dock icon ▸ Relaunch, or `killall Finder` in Terminal)
 > usually fixes it; if it doesn't, restarting the Mac reliably clears it.
 >
-> **Note:** dragging out a single entry delivers that file directly.
-> Dragging out several selected entries at once delivers them inside one
-> folder instead of as loose files — `SwiftUI.Table` has no built-in way to
-> bundle a multi-selection into separate items in one drag session (unlike
-> `List`), so all of them are extracted into a wrapper folder and *that*
-> folder is what gets dragged out.
+> **Note:** dragging out several selected entries at once delivers all of
+> them to Finder as loose files, same as dragging a single one. (Under the
+> hood: `SwiftUI.Table` has no built-in way to bundle a multi-selection into
+> one drag session the way `List` does, so multi-selection drags are handled
+> by a small AppKit layer using `NSFilePromiseProvider` instead of SwiftUI's
+> `.onDrag`.) One minor edge case: double-clicking a single entry that's
+> already part of a larger selection may not reliably activate it (Quick
+> Look / enter folder) — click it once first to select just that entry, then
+> double-click normally.
 
 ## Architecture
 

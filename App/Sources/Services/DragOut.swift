@@ -60,78 +60,6 @@ enum DragOut {
         return provider
     }
 
-    /// An item provider for dragging several entries out at once.
-    ///
-    /// SwiftUI's `Table` has no built-in way to bundle a multi-selection into
-    /// one drag session the way `List` does — a drag started from a `Table`
-    /// row only ever carries that one row, regardless of selection. Rather
-    /// than replacing `Table` (losing sortable/resizable columns) or a full
-    /// AppKit rewrite of the file list, this extracts every selected entry
-    /// into one staging folder and hands Finder *that folder* as the single
-    /// dragged item — a real compromise: the user gets everything they
-    /// selected, delivered as one folder instead of N loose files at the
-    /// drop target.
-    static func itemProvider(
-        forMultiple entries: [ArchiveEntry],
-        archiveURL: URL,
-        password rawPassword: String?
-    ) -> NSItemProvider {
-        let password = (rawPassword?.isEmpty == false) ? rawPassword : nil
-        let provider = NSItemProvider()
-        provider.suggestedName = "\(entries.count) items"
-
-        let paths = entries.map(\.path)
-
-        provider.registerFileRepresentation(
-            forTypeIdentifier: UTType.folder.identifier,
-            fileOptions: [],
-            visibility: .all
-        ) { completion in
-            let progress = Progress(totalUnitCount: 1)
-            Task.detached {
-                do {
-                    let url = try await Self.extractMultiple(
-                        entryPaths: paths,
-                        archiveURL: archiveURL,
-                        password: password
-                    )
-                    progress.completedUnitCount = 1
-                    completion(url, false, nil)
-                } catch {
-                    completion(nil, false, error)
-                }
-            }
-            return progress
-        }
-        return provider
-    }
-
-    /// Extracts several entries into one fresh staging folder and returns
-    /// that folder's URL — the wrapper delivered to Finder for a
-    /// multi-selection drag.
-    static func extractMultiple(
-        entryPaths: [String],
-        archiveURL: URL,
-        password: String?
-    ) async throws -> URL {
-        let executable = try BundledEngine.resolve()
-        let service = ArchiveService(executable: executable)
-
-        try FileManager.default.createDirectory(at: stagingRoot, withIntermediateDirectories: true)
-        let temp = stagingRoot.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
-
-        let request = ExtractionRequest(
-            archiveURL: archiveURL,
-            destinationURL: temp,
-            password: password,
-            selectedPaths: entryPaths,
-            overwritePolicy: .overwrite
-        )
-        try await service.extract(request) { _ in }
-        return temp
-    }
-
     /// Extracts a single entry (a folder is extracted with its whole subtree)
     /// into a unique staging directory and returns the extracted item's URL.
     static func extract(
@@ -180,7 +108,7 @@ enum DragOut {
         }
     }
 
-    private static func typeIdentifier(for entry: ArchiveEntry) -> String {
+    static func typeIdentifier(for entry: ArchiveEntry) -> String {
         if entry.isDirectory {
             return UTType.folder.identifier
         }

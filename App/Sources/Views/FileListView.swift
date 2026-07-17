@@ -61,23 +61,20 @@ struct FileListView: View {
                 }
                 .buttonStyle(.plain)
                 .help(entry.path)
-                .onDrag {
-                    guard !entry.isParentLink, let archiveURL = viewModel.archiveURL else {
-                        return NSItemProvider()
-                    }
-                    // A `Table` drag only ever carries the row it started
-                    // from — if that row is part of a larger selection, drag
-                    // every selected entry out together (as one folder; see
-                    // `DragOut.itemProvider(forMultiple:)`) instead of
-                    // silently leaving the rest of the selection behind.
-                    let selectedEntries = viewModel.visibleEntries.filter {
-                        selection.contains($0.id) && !$0.isParentLink
-                    }
-                    if selectedEntries.count > 1, selection.contains(entry.id) {
-                        return DragOut.itemProvider(forMultiple: selectedEntries, archiveURL: archiveURL, password: viewModel.sessionPassword)
-                    }
-                    return DragOut.itemProvider(for: entry, archiveURL: archiveURL, password: viewModel.sessionPassword)
-                }
+                .modifier(EntryDragModifier(
+                    entry: entry,
+                    archiveURL: viewModel.archiveURL,
+                    password: viewModel.sessionPassword,
+                    isPartOfMultiSelection: selection.count > 1 && selection.contains(entry.id),
+                    selectedEntries: {
+                        viewModel.visibleEntries.filter { selection.contains($0.id) && !$0.isParentLink }
+                    },
+                    onPlainClick: {
+                        selection = [entry.id]
+                        selectionAnchor = entry.id
+                    },
+                    onDoubleClick: { activate(entry) }
+                ))
             }
             .width(min: 200, ideal: 320)
 
@@ -314,5 +311,42 @@ private struct BreadcrumbBar: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.bar)
+    }
+}
+
+/// Chooses how a row can be dragged out to Finder:
+///   - not draggable at all (".." row, or the archive isn't loaded yet);
+///   - part of a multi-selection → overlays `MultiItemDragTrigger`, which
+///     hands Finder every selected entry as loose files via a real AppKit
+///     `NSDraggingSession` (what `.onDrag` can't do for a `Table`);
+///   - otherwise → the existing single-item `.onDrag`/`NSItemProvider` path,
+///     unchanged and untouched by any of this.
+private struct EntryDragModifier: ViewModifier {
+    let entry: ArchiveEntry
+    let archiveURL: URL?
+    let password: String?
+    let isPartOfMultiSelection: Bool
+    let selectedEntries: () -> [ArchiveEntry]
+    let onPlainClick: () -> Void
+    let onDoubleClick: () -> Void
+
+    func body(content: Content) -> some View {
+        if entry.isParentLink || archiveURL == nil {
+            content
+        } else if isPartOfMultiSelection {
+            content.overlay(
+                MultiItemDragTrigger(
+                    entries: selectedEntries(),
+                    archiveURL: archiveURL!,
+                    password: password,
+                    onPlainClick: onPlainClick,
+                    onDoubleClick: onDoubleClick
+                )
+            )
+        } else {
+            content.onDrag {
+                DragOut.itemProvider(for: entry, archiveURL: archiveURL!, password: password)
+            }
+        }
     }
 }
