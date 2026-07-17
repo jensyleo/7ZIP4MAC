@@ -47,9 +47,8 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 > hood: `SwiftUI.Table` has no built-in way to bundle a multi-selection into
 > one drag session the way `List` does, so multi-selection drags are handled
 > by a small AppKit layer using `NSFilePromiseProvider` instead of SwiftUI's
-> `.onDrag`.) One minor edge case: double-clicking a single entry that's
-> already part of a larger selection may not reliably activate it (Quick
-> Look / enter folder) — click it once first to select just that entry, then
+> `.onDrag`.) Double-clicking an entry that's already part of a larger
+> selection isn't a supported gesture — click it alone first, then
 > double-click normally.
 
 ## Architecture
