@@ -121,6 +121,9 @@ struct FileListView: View {
             if NSApp.keyWindow?.firstResponder is NSTextView { return event }
 
             switch event.keyCode {
+            case 0 where event.modifierFlags.contains(.command): // kVK_ANSI_A, ⌘A
+                selection = Set(viewModel.visibleEntries.filter { !$0.isParentLink }.map(\.id))
+                return nil
             case 49 where !selection.isEmpty: // kVK_Space
                 onQuickLook()
                 return nil
