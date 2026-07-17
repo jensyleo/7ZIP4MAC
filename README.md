@@ -42,11 +42,12 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 > (⌥-right-click its Dock icon ▸ Relaunch, or `killall Finder` in Terminal)
 > usually fixes it; if it doesn't, restarting the Mac reliably clears it.
 >
-> **Known limitation:** dragging out more than one selected entry at a time
-> only carries a single file to Finder — `SwiftUI.Table` has no built-in way
-> to bundle a multi-selection into one drag session (unlike `List`). Dragging
-> a single entry works normally; multi-item drag-out needs a custom AppKit
-> drag source and is left for a future version.
+> **Note:** dragging out a single entry delivers that file directly.
+> Dragging out several selected entries at once delivers them inside one
+> folder instead of as loose files — `SwiftUI.Table` has no built-in way to
+> bundle a multi-selection into separate items in one drag session (unlike
+> `List`), so all of them are extracted into a wrapper folder and *that*
+> folder is what gets dragged out.
 
 ## Architecture
 

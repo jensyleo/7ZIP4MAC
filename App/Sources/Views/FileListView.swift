@@ -65,6 +65,17 @@ struct FileListView: View {
                     guard !entry.isParentLink, let archiveURL = viewModel.archiveURL else {
                         return NSItemProvider()
                     }
+                    // A `Table` drag only ever carries the row it started
+                    // from — if that row is part of a larger selection, drag
+                    // every selected entry out together (as one folder; see
+                    // `DragOut.itemProvider(forMultiple:)`) instead of
+                    // silently leaving the rest of the selection behind.
+                    let selectedEntries = viewModel.visibleEntries.filter {
+                        selection.contains($0.id) && !$0.isParentLink
+                    }
+                    if selectedEntries.count > 1, selection.contains(entry.id) {
+                        return DragOut.itemProvider(forMultiple: selectedEntries, archiveURL: archiveURL, password: viewModel.sessionPassword)
+                    }
                     return DragOut.itemProvider(for: entry, archiveURL: archiveURL, password: viewModel.sessionPassword)
                 }
             }
