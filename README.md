@@ -4,7 +4,7 @@ A native macOS graphical interface for [7-Zip](https://www.7-zip.org/), built to
 feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drives
 the official, unmodified `7zz` engine, which is bundled inside the application.
 
-> Status: **v1.2.0**
+> Status: **v1.4.0**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -43,37 +43,9 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 > usually fixes it; if it doesn't, restarting the Mac reliably clears it.
 >
 > **Note:** dragging out several selected entries at once delivers all of
-> them to Finder as loose files, same as dragging a single one. (Under the
-> hood: `SwiftUI.Table` has no built-in way to bundle a multi-selection into
-> one drag session the way `List` does, so multi-selection drags are handled
-> by a small AppKit layer using `NSFilePromiseProvider` instead of SwiftUI's
-> `.onDrag`.) Double-clicking an entry that's already part of a larger
-> selection isn't a supported gesture — click it alone first, then
-> double-click normally.
-
-## Architecture
-
-Strict MVVM with a clean separation between UI, logic and the engine:
-
-```
-SwiftUI Views  →  ArchiveViewModel  →  ArchiveService  →  SevenZipBridge  →  7zz
-   (render)          (state)            (logic)          (process bridge)   (engine)
-```
-
-- **`SevenZipKit`** — a standalone, fully unit-tested Swift package containing the
-  models (`Archive`, `ArchiveEntry`, `ProgressInfo`, `ExtractionRequest`,
-  `CompressionRequest`, `ArchiveFormat`), the typed error type (`ArchiveError`),
-  the process bridge (`SevenZipRunner`, `SevenZipBridge`), the `-slt` listing
-  parser, the live progress parser/tracker, and the services. No UI dependency.
-- **`App`** — the SwiftUI application. Views only render state and forward user
-  intents; all logic lives in the ViewModel and the services.
-
-The Views never call the engine directly. The engine is spawned in exactly one
-place (`SevenZipRunner`), and standard output / standard error are drained
-concurrently so a large listing can never deadlock a pipe. Long operations use a
-streaming variant that parses the engine's live progress (`ProgressParser`) and
-turns it into throughput/ETA (`ProgressTracker`), and can be cancelled — which
-terminates the underlying process.
+> them to Finder as loose files, same as dragging a single one.
+> Double-clicking an entry that's already part of a larger selection isn't a
+> supported gesture — click it alone first, then double-click normally.
 
 ## The 7-Zip engine
 
@@ -105,13 +77,10 @@ The app is installed to `/Applications/7ZIP4MAC.app`.
 
 Not currently planned, but kept in mind for a future version:
 
-- **Auto-update** via Sparkle (appcast feed, EdDSA-signed updates).
-- **Spotlight indexing** of archive contents (a custom `.mdimporter`), so
-  Spotlight can find files *inside* an archive, not just the archive itself.
-- **Finder Sync extension** ("Compress with 7ZIP4MAC" in the right-click menu)
-  — built once, then removed: macOS requires a paid Apple Developer ID
-  signature for `pluginkit` to accept a Finder Sync extension at all, which
-  an ad-hoc-signed build doesn't have. Revisiting this needs a Developer ID.
+- **Auto-update**, so the app can check for and install new versions itself.
+- **Spotlight indexing** of archive contents, so Spotlight can find files
+  *inside* an archive, not just the archive itself.
+- **A Finder right-click menu** ("Compress with 7ZIP4MAC" / "Extract").
 
 ## License
 
