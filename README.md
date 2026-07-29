@@ -73,6 +73,18 @@ The app is installed to `/Applications/7ZIP4MAC.app`.
 > signature is needed to distribute it without a Gatekeeper prompt on other
 > machines.
 
+## Quick Look preview (optional, for local builds only)
+
+The public releases of 7ZIP4MAC do not include Quick Look — only the main application.
+
+If you compile 7ZIP4MAC yourself and want to enable Quick Look for `.7z`, `.zip`, and other archive formats in Finder (press Space on any archive file), you can:
+
+1. **Add your Apple ID to Xcode** (free account, no cost): Xcode ▸ Settings ▸ Accounts ▸ click `+` ▸ sign in with your Apple ID.
+2. **Modify the build script**: edit `Scripts/build.sh` and replace `--sign -` with `--sign <your-team-id>`. You can find your Personal Team ID in Xcode ▸ Settings ▸ Accounts ▸ your Apple ID ▸ Manage Certificates (it's a 10-character string like `ABC123DEF4`).
+3. **Rebuild**: run `Scripts/build.sh` again. The Quick Look extension will now be bundled and signed with your identity.
+
+The extension will work on your own Mac. If you want to distribute a build with Quick Look to others, you will need a [paid Apple Developer Program membership](https://developer.apple.com/programs/) ($99/year) to obtain a Developer ID certificate for notarization.
+
 ## Roadmap
 
 Not currently planned, but kept in mind for a future version:
