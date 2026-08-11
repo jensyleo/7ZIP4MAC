@@ -954,6 +954,16 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>7ZIP4MAC Archive Entry Transfer</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.jensyleo.sevenzip4mac.archive-entry</string>
+		</dict>
 	</array>
 </dict>
 </plist>

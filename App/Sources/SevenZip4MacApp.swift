@@ -3,20 +3,23 @@ import AppKit
 
 /// Application entry point.
 ///
-/// Owns the single ``ArchiveViewModel`` for the window and wires the File menu.
-/// Finder double-click integration is a later phase (see ROADMAP); for now an
-/// archive is opened via ⌘O or by dropping it onto the window.
+/// Each window owns its own `ArchiveViewModel`/`CompressionViewModel` (see
+/// ``ArchiveWindowRoot``) — opening a second archive opens a second window,
+/// the same as Preview or TextEdit, instead of replacing whatever the first
+/// window was already showing. `Settings`, `ProfileStore` and `RecentsStore`
+/// are app-wide preferences, shared across every window.
 @main
 struct SevenZip4MacApp: App {
-    @State private var viewModel = ArchiveViewModel()
-    @State private var compression = CompressionViewModel()
     @State private var benchmark = BenchmarkViewModel()
     @State private var settings = AppSettings()
     @State private var profileStore = ProfileStore()
     @State private var recents = RecentsStore()
 
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
+
+    @FocusedValue(\.archiveViewModel) private var focusedViewModel
+    @FocusedValue(\.compressionViewModel) private var focusedCompression
 
     init() {
         SingleInstance.enforceOrExit()
@@ -27,32 +30,17 @@ struct SevenZip4MacApp: App {
     }
 
     var body: some Scene {
-        // A single `Window`, not `WindowGroup`: every window would share the
-        // exact same `ArchiveViewModel` anyway (there's no per-window state),
-        // so a second window can never show anything different — it can only
-        // ever mirror the first. `WindowGroup` doesn't know that and opens a
-        // brand new window whenever Finder delivers an "open this file" event
-        // while the app is already running, producing two windows that both
-        // render the same (shared) freshly opened archive. `Window` guarantees
-        // there is only ever one, so opening a file while running just routes
-        // straight to the existing window instead.
-        Window("7ZIP4MAC", id: "main") {
-            ContentView(viewModel: viewModel, compression: compression,
-                        settings: settings, profileStore: profileStore, recents: recents)
-                .onAppear {
-                    viewModel.onArchiveOpened = { recents.record($0) }
-                    // Point the user at Settings ▸ File Types once, on first
-                    // launch — but never associate anything automatically:
-                    // macOS shows a real confirmation dialog per format ("Do
-                    // you want .zip files to open with 7ZIP4MAC or keep using
-                    // Archive Utility?"), and firing all of them at once would
-                    // ambush the user with a stack of system dialogs they
-                    // didn't ask for. The "Associate Recommended Files…"
-                    // button there warns about that before doing anything.
-                    if !settings.hasShownFileTypesOnboarding {
-                        openSettings()
-                    }
-                }
+        // A single `WindowGroup(for: URL?.self)`: one empty window opens
+        // automatically at launch (value `nil`), and `openWindow(value:)`
+        // opens (or focuses, if that URL is already open) a window for a
+        // specific archive. A second, separate group for the same content
+        // was tried first and caused macOS to spin up an extra scaffold
+        // window — visibly flashing on screen — for every file-open request
+        // that reached an already-running instance; one group avoids that.
+        WindowGroup(id: "main", for: URL?.self) { $archiveURL in
+            ArchiveWindowRoot(archiveURL: archiveURL ?? nil, settings: settings,
+                              profileStore: profileStore, recents: recents)
+                .onAppear { appDelegate.openWindow = openWindow }
         }
         .windowToolbarStyle(.unified)
         .commands {
@@ -68,6 +56,7 @@ struct SevenZip4MacApp: App {
             }
             CommandGroup(replacing: .newItem) {
                 Button("New Archive…") {
+                    guard let compression = focusedCompression else { return }
                     let sources = SourceSelectionPanel.present()
                     if !sources.isEmpty {
                         compression.begin(
@@ -79,18 +68,17 @@ struct SevenZip4MacApp: App {
                     }
                 }
                 .keyboardShortcut("n", modifiers: .command)
-                .disabled(compression.isRunning)
+                .disabled(focusedCompression?.isRunning ?? true)
 
                 Button("Open Archive…") {
-                    if let url = ArchiveOpenPanel.present() {
-                        viewModel.open(url: url)
-                    }
+                    guard let url = ArchiveOpenPanel.present() else { return }
+                    openArchiveRespectingFocusedWindow(url)
                 }
                 .keyboardShortcut("o", modifiers: .command)
 
                 Menu("Open Recent") {
                     ForEach(recents.existing, id: \.self) { url in
-                        Button(url.lastPathComponent) { viewModel.open(url: url) }
+                        Button(url.lastPathComponent) { openArchiveRespectingFocusedWindow(url) }
                     }
                     if !recents.existing.isEmpty {
                         Divider()
@@ -100,20 +88,20 @@ struct SevenZip4MacApp: App {
                 .disabled(recents.existing.isEmpty)
 
                 Button("Close Archive") {
-                    viewModel.close()
+                    focusedViewModel?.close()
                 }
-                .disabled(viewModel.archive == nil)
+                .disabled(focusedViewModel?.archive == nil)
 
                 Divider()
 
                 Button("Extract All…") {
-                    guard let archive = viewModel.archive,
+                    guard let viewModel = focusedViewModel, let archive = viewModel.archive,
                           let folder = DestinationPanel.present(suggestedName: archive.url.lastPathComponent)
                     else { return }
                     viewModel.extract(into: folder, intoSubfolder: settings.extractIntoSubfolder)
                 }
                 .keyboardShortcut("e", modifiers: .command)
-                .disabled(viewModel.archive == nil || viewModel.isExtracting)
+                .disabled(focusedViewModel?.archive == nil || (focusedViewModel?.isExtracting ?? false))
             }
         }
 
@@ -125,6 +113,18 @@ struct SevenZip4MacApp: App {
             BenchmarkView(viewModel: benchmark)
         }
         .windowResizability(.contentMinSize)
+    }
+
+    /// Loads `url` into the focused window if it's empty; otherwise opens (or
+    /// focuses, if already open) a separate window for it — an already-loaded
+    /// window's archive should never be silently replaced.
+    private func openArchiveRespectingFocusedWindow(_ url: URL) {
+        if OpenArchiveWindowRegistry.focusIfOpen(url) { return }
+        if let viewModel = focusedViewModel, viewModel.archive == nil {
+            viewModel.open(url: url)
+        } else {
+            openWindow(value: url as URL?)
+        }
     }
 }
 

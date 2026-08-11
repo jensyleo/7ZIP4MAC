@@ -314,13 +314,16 @@ private struct BreadcrumbBar: View {
     }
 }
 
-/// Chooses how a row can be dragged out to Finder:
+/// Chooses how a row can be dragged out — to Finder, or into another
+/// 7ZIP4MAC window's archive:
 ///   - not draggable at all (".." row, or the archive isn't loaded yet);
-///   - part of a multi-selection → overlays `MultiItemDragTrigger`, which
-///     hands Finder every selected entry as loose files via a real AppKit
-///     `NSDraggingSession` (what `.onDrag` can't do for a `Table`);
-///   - otherwise → the existing single-item `.onDrag`/`NSItemProvider` path,
-///     unchanged and untouched by any of this.
+///   - otherwise → overlays `MultiItemDragTrigger` with either the whole
+///     multi-selection or just this one entry. Always the AppKit
+///     `NSDraggingSession` route, never SwiftUI's `.onDrag` — a `Table`
+///     swallows the mouse-down for its own drag recognition before
+///     `.onDrag` ever produces a session a *different* window's `onDrop`
+///     can see (dragging out to Finder still worked, since `.onDrag` only
+///     failed to reach destinations inside this same app).
 private struct EntryDragModifier: ViewModifier {
     let entry: ArchiveEntry
     let archiveURL: URL?
@@ -333,20 +336,16 @@ private struct EntryDragModifier: ViewModifier {
     func body(content: Content) -> some View {
         if entry.isParentLink || archiveURL == nil {
             content
-        } else if isPartOfMultiSelection {
+        } else {
             content.overlay(
                 MultiItemDragTrigger(
-                    entries: selectedEntries(),
+                    entries: isPartOfMultiSelection ? selectedEntries() : [entry],
                     archiveURL: archiveURL!,
                     password: password,
                     onPlainClick: onPlainClick,
                     onDoubleClick: onDoubleClick
                 )
             )
-        } else {
-            content.onDrag {
-                DragOut.itemProvider(for: entry, archiveURL: archiveURL!, password: password)
-            }
         }
     }
 }

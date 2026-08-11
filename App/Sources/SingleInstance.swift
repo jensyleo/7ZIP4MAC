@@ -3,9 +3,10 @@ import AppKit
 import Darwin
 #endif
 
-/// Guarantees a single running instance **per user**. If another 7ZIP4MAC
-/// owned by the same uid is already running, this instance activates it and
-/// exits immediately.
+/// Guarantees a single running process **per user**. Every archive still gets
+/// its own window (see ``ArchiveWindowRoot``) — this only stops a second
+/// Dock/Finder launch from starting a duplicate process, the same as any
+/// standard single-process, multi-window Mac app (Preview, TextEdit).
 enum SingleInstance {
 
     static func enforceOrExit() {

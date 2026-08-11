@@ -2,10 +2,31 @@ import Foundation
 import UniformTypeIdentifiers
 import SevenZipKit
 
-/// Builds drag item providers that extract an archive entry lazily — only when
-/// the user actually drops it onto Finder (a file promise). Nothing is written
-/// to disk if the drag is cancelled.
+/// Extracts an archive entry lazily on drop — used by `MultiItemDragTrigger`'s
+/// file promises (drag out to Finder or into another 7ZIP4MAC window) and by
+/// Quick Look. Nothing is written to disk if the drag is cancelled.
 enum DragOut {
+
+    /// Identifies a drag item as "an entry from one of our own archive
+    /// windows" — carried alongside the normal file-promise representation
+    /// so a *different* 7ZIP4MAC window can recognize the drop as a
+    /// cross-archive transfer instead of a plain file from Finder. The
+    /// password isn't included (it never touches the pasteboard); the
+    /// destination window looks up the source archive's live session
+    /// password through ``OpenArchiveWindowRegistry`` instead.
+    ///
+    /// Declared as a real `UTExportedTypeDeclarations` entry in Info.plist
+    /// (not just an ad-hoc string) — SwiftUI's `.onDrop` silently ignores an
+    /// unregistered identifier when deciding whether a drag matches, so
+    /// without that declaration the drop target never saw this type at all.
+    static let crossArchiveTypeIdentifier = "com.jensyleo.sevenzip4mac.archive-entry"
+    static let crossArchiveType = UTType(crossArchiveTypeIdentifier)!
+
+    struct EntryTransfer: Codable {
+        let archiveURL: URL
+        let entryPath: String
+        let isDirectory: Bool
+    }
 
     /// Parent dir for all drag staging folders. Finder copies the promised
     /// file itself and never tells us when it's done, so we can't delete right
@@ -13,51 +34,6 @@ enum DragOut {
     private static var stagingRoot: URL {
         FileManager.default.temporaryDirectory
             .appending(path: "7ZIP4MAC-Drag", directoryHint: .isDirectory)
-    }
-
-    /// An item provider for dragging a single entry out of the archive.
-    ///
-    /// - Parameters:
-    ///   - entry: The file or folder to drag out.
-    ///   - archiveURL: The archive the entry lives in.
-    ///   - password: Password for encrypted archives, if any (read live at
-    ///     drag-start by the caller). Empty is treated as "no password".
-    static func itemProvider(
-        for entry: ArchiveEntry,
-        archiveURL: URL,
-        password rawPassword: String?
-    ) -> NSItemProvider {
-        // Treat "" as nil so the engine never gets a bare `-p` (which can make
-        // it block on an interactive password prompt).
-        let password = (rawPassword?.isEmpty == false) ? rawPassword : nil
-        let provider = NSItemProvider()
-        provider.suggestedName = entry.name
-
-        let typeIdentifier = Self.typeIdentifier(for: entry)
-        let entryPath = entry.path
-
-        provider.registerFileRepresentation(
-            forTypeIdentifier: typeIdentifier,
-            fileOptions: [],
-            visibility: .all
-        ) { completion in
-            let progress = Progress(totalUnitCount: 1)
-            Task.detached {
-                do {
-                    let url = try await Self.extract(
-                        entryPath: entryPath,
-                        archiveURL: archiveURL,
-                        password: password
-                    )
-                    progress.completedUnitCount = 1
-                    completion(url, false, nil)
-                } catch {
-                    completion(nil, false, error)
-                }
-            }
-            return progress
-        }
-        return provider
     }
 
     /// Extracts a single entry (a folder is extracted with its whole subtree)

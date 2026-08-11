@@ -11,6 +11,7 @@
 		077839F48EFE6DE219C8A605 /* BundledEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D479DBA0B8DAEC0F4A7C74 /* BundledEngine.swift */; };
 		0A04A8B6D63F527CC28ED79A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2033E4B3E40CB4079AC3B4E /* AppSettings.swift */; };
 		0A065972293A7E0F81DA42C5 /* Uninstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F78946EFCA0922C92685D8E /* Uninstaller.swift */; };
+		0C60D501B272ABEF6E156BBC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 116CDDF2C723E3F14BE28287 /* AppDelegate.swift */; };
 		0FDB7A20C34BCC7E52EE33A4 /* 7z.icns in Resources */ = {isa = PBXBuildFile; fileRef = B4F3712E8650F183095BA7A0 /* 7z.icns */; };
 		12DDB6AA6804922F429C17A7 /* deb.icns in Resources */ = {isa = PBXBuildFile; fileRef = 808F4A30398FE260CF1D7FF3 /* deb.icns */; };
 		194993FFB8CE57D8429459EB /* BenchmarkViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8EAB6A1B1FDC6A03FC2A07 /* BenchmarkViewModel.swift */; };
@@ -33,6 +34,7 @@
 		489F5D94735455FF5FFCBBCE /* vhdx.icns in Resources */ = {isa = PBXBuildFile; fileRef = F36D1DC4C141146CC108F875 /* vhdx.icns */; };
 		4C73768B4AF5DFBCCA906F1E /* ArchiveIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CCC9623B2FD60A8C4BFE1AE /* ArchiveIntents.swift */; };
 		4E20905205DCC214846FA06A /* cpio.icns in Resources */ = {isa = PBXBuildFile; fileRef = 6B1C6F8B683CDF7CB67D4FEB /* cpio.icns */; };
+		5019AA74E44F1B1583212694 /* FocusedValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8621208188F43C320BDDB0B9 /* FocusedValues.swift */; };
 		5771799712BA1203A9FE7086 /* pkg.icns in Resources */ = {isa = PBXBuildFile; fileRef = C7F37C6B237CD849A5938A04 /* pkg.icns */; };
 		57E08C14CB70E1F3B7A478B5 /* zip.icns in Resources */ = {isa = PBXBuildFile; fileRef = F8F63E7310951B48A417E450 /* zip.icns */; };
 		5A26220A48169DCE1D595EA9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9723DD1A0D6831A166C3CB26 /* SettingsView.swift */; };
@@ -44,6 +46,7 @@
 		78BEC2CF5DA9D3CC2A2F61AB /* vhd.icns in Resources */ = {isa = PBXBuildFile; fileRef = A9EE7973316E9135DCDEB39E /* vhd.icns */; };
 		7A709C98C45157136EA4A88F /* vdi.icns in Resources */ = {isa = PBXBuildFile; fileRef = F984C6E63BC712105FB5711D /* vdi.icns */; };
 		7BCE92C8029826EF592BCB28 /* AutomationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2F5A0571F39D2009576955B /* AutomationService.swift */; };
+		7C2C5115CE8214AB969F1DC4 /* ArchiveWindowRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1202F2D162B0708FECCF73 /* ArchiveWindowRoot.swift */; };
 		7D7F20733A72641D4EBD8247 /* 7ZIP4MAC.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 721D4362190285C8AC5941F9 /* 7ZIP4MAC.sdef */; };
 		7EA3AD8351372F5504E031B9 /* z.icns in Resources */ = {isa = PBXBuildFile; fileRef = E4D669FE5F46326DDAEB77D1 /* z.icns */; };
 		7F1DDA3E80ADAAB20C2E8B84 /* bz2.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5B7823ED623BF68AEB7AD010 /* bz2.icns */; };
@@ -51,6 +54,7 @@
 		8EE73705FBEBFDD864570BA2 /* MultiItemDragTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 395179BB8D9139E53BADF516 /* MultiItemDragTrigger.swift */; };
 		91E50554A4E7CC8A92CE8FC0 /* ProgressInfo+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F16EED7BBBA7454A384D85B /* ProgressInfo+Display.swift */; };
 		932F4E4E49694DBC646FF31C /* cab.icns in Resources */ = {isa = PBXBuildFile; fileRef = F96289F7A30BAD1E8DBDEDAB /* cab.icns */; };
+		9338422FF31054919DD48C4D /* WindowAccessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 758A65923BB27428AD496B32 /* WindowAccessor.swift */; };
 		94C7E48D8A37DAE4F420EB1A /* BenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EBFFA30AFF995CE3727B1D /* BenchmarkView.swift */; };
 		99575D4C8F59842B69813DE5 /* AppURLRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A481681D881978A42525FA8D /* AppURLRouter.swift */; };
 		999F2BB9CFAAA8B6D80F9D7C /* wim.icns in Resources */ = {isa = PBXBuildFile; fileRef = A92A24701CD773EBBF80F42B /* wim.icns */; };
@@ -58,6 +62,7 @@
 		9D9894F420CA00E065911E5A /* tar.icns in Resources */ = {isa = PBXBuildFile; fileRef = 9B2943D662695DE90CBA30FE /* tar.icns */; };
 		A5BB4BD76A8C0539CCB71D65 /* lzh.icns in Resources */ = {isa = PBXBuildFile; fileRef = 40DC54C2B2D262C79F248BE3 /* lzh.icns */; };
 		A94FBCAACF050BA2FAE5E097 /* SevenZipKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3E7E13B62F58B94A4CCFCE41 /* SevenZipKit */; };
+		AC423679783D05B702E19C8D /* OpenArchiveWindowRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477A45A3EC2EC6C4EB6882E1 /* OpenArchiveWindowRegistry.swift */; };
 		AC5EAAC377B394D7320C41A0 /* ArchiveViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B8FA52C209651272E24F72 /* ArchiveViewModel.swift */; };
 		AC6588D5ED1B7723D72A9127 /* ScriptCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1CC42EB512E95EECED33221 /* ScriptCommands.swift */; };
 		AC75A5FF48BA05043FF2D8C7 /* lzma.icns in Resources */ = {isa = PBXBuildFile; fileRef = 6DC12AEAEFA8258C0AB91E6A /* lzma.icns */; };
@@ -88,6 +93,7 @@
 /* Begin PBXFileReference section */
 		06B8FA52C209651272E24F72 /* ArchiveViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveViewModel.swift; sourceTree = "<group>"; };
 		0E6C096B6D51BFE041D9520E /* xz.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = xz.icns; sourceTree = "<group>"; };
+		116CDDF2C723E3F14BE28287 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		11FA1E7AB7410650A2798451 /* ArchiveEntry+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArchiveEntry+Display.swift"; sourceTree = "<group>"; };
 		154B114D2C69CDCE9D6D881E /* rpm.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = rpm.icns; sourceTree = "<group>"; };
 		226F44E8D6FE9C80B429A585 /* ar.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = ar.icns; sourceTree = "<group>"; };
@@ -103,6 +109,7 @@
 		3DDE56908D5C037032D27A63 /* FileListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileListView.swift; sourceTree = "<group>"; };
 		40DC54C2B2D262C79F248BE3 /* lzh.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = lzh.icns; sourceTree = "<group>"; };
 		451A5898DCAF44B3924C4007 /* nsis.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = nsis.icns; sourceTree = "<group>"; };
+		477A45A3EC2EC6C4EB6882E1 /* OpenArchiveWindowRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenArchiveWindowRegistry.swift; sourceTree = "<group>"; };
 		5B7823ED623BF68AEB7AD010 /* bz2.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = bz2.icns; sourceTree = "<group>"; };
 		6A6A03985870DE2A4D1B3B75 /* dmg.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = dmg.icns; sourceTree = "<group>"; };
 		6B1C6F8B683CDF7CB67D4FEB /* cpio.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = cpio.icns; sourceTree = "<group>"; };
@@ -111,6 +118,7 @@
 		6F78946EFCA0922C92685D8E /* Uninstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Uninstaller.swift; sourceTree = "<group>"; };
 		7193253F84D3E8B6FEF6F919 /* EntryIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryIcon.swift; sourceTree = "<group>"; };
 		721D4362190285C8AC5941F9 /* 7ZIP4MAC.sdef */ = {isa = PBXFileReference; path = 7ZIP4MAC.sdef; sourceTree = "<group>"; };
+		758A65923BB27428AD496B32 /* WindowAccessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowAccessor.swift; sourceTree = "<group>"; };
 		796D255FE5A4F48A9A72CC28 /* hfs.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = hfs.icns; sourceTree = "<group>"; };
 		7C8EAB6A1B1FDC6A03FC2A07 /* BenchmarkViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkViewModel.swift; sourceTree = "<group>"; };
 		7D2001126EBDA2E2C61E0B03 /* DragOut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragOut.swift; sourceTree = "<group>"; };
@@ -118,6 +126,7 @@
 		7F16EED7BBBA7454A384D85B /* ProgressInfo+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgressInfo+Display.swift"; sourceTree = "<group>"; };
 		808F4A30398FE260CF1D7FF3 /* deb.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = deb.icns; sourceTree = "<group>"; };
 		81C68413475D9D25BA76A319 /* ProgressPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressPanelView.swift; sourceTree = "<group>"; };
+		8621208188F43C320BDDB0B9 /* FocusedValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedValues.swift; sourceTree = "<group>"; };
 		896B97392DF7589ED066946D /* InspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorView.swift; sourceTree = "<group>"; };
 		8AE541D389A4A9FB280F2BE5 /* PasswordPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordPromptView.swift; sourceTree = "<group>"; };
 		8CED0F4CDF346FBEFAF6AEB0 /* ArchiveOpenPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveOpenPanel.swift; sourceTree = "<group>"; };
@@ -133,6 +142,7 @@
 		A481681D881978A42525FA8D /* AppURLRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppURLRouter.swift; sourceTree = "<group>"; };
 		A92A24701CD773EBBF80F42B /* wim.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = wim.icns; sourceTree = "<group>"; };
 		A9EE7973316E9135DCDEB39E /* vhd.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = vhd.icns; sourceTree = "<group>"; };
+		AB1202F2D162B0708FECCF73 /* ArchiveWindowRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveWindowRoot.swift; sourceTree = "<group>"; };
 		AE93817FFC5CAC3D517CD570 /* CompressionOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompressionOptionsView.swift; sourceTree = "<group>"; };
 		AF2269F473D98CF629067D88 /* xip.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = xip.icns; sourceTree = "<group>"; };
 		B1CC42EB512E95EECED33221 /* ScriptCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptCommands.swift; sourceTree = "<group>"; };
@@ -197,13 +207,18 @@
 		175DE18AEC70AF30FE4A00D5 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				116CDDF2C723E3F14BE28287 /* AppDelegate.swift */,
 				A2033E4B3E40CB4079AC3B4E /* AppSettings.swift */,
+				AB1202F2D162B0708FECCF73 /* ArchiveWindowRoot.swift */,
 				D4164381AC4B9936A936D47F /* AssociableFormat.swift */,
+				8621208188F43C320BDDB0B9 /* FocusedValues.swift */,
+				477A45A3EC2EC6C4EB6882E1 /* OpenArchiveWindowRegistry.swift */,
 				9CF4F6850525A97EA58FE104 /* ProfileStore.swift */,
 				BF74263CE835744E4BD6D333 /* RecentsStore.swift */,
 				B677C8132655DCBC92B3FBD6 /* SevenZip4MacApp.swift */,
 				FA2B90A52E60D3C3E4940FC8 /* SingleInstance.swift */,
 				6F78946EFCA0922C92685D8E /* Uninstaller.swift */,
+				758A65923BB27428AD496B32 /* WindowAccessor.swift */,
 				2F31958512FB92886B1887B2 /* Intents */,
 				AD1AE7DF40D4F1F0B63FD08C /* Scripting */,
 				B366C247930223100AC9A48F /* Services */,
@@ -462,12 +477,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0C60D501B272ABEF6E156BBC /* AppDelegate.swift in Sources */,
 				0A04A8B6D63F527CC28ED79A /* AppSettings.swift in Sources */,
 				99575D4C8F59842B69813DE5 /* AppURLRouter.swift in Sources */,
 				EC99AE13A5DD33201AB92920 /* ArchiveEntry+Display.swift in Sources */,
 				4C73768B4AF5DFBCCA906F1E /* ArchiveIntents.swift in Sources */,
 				BB940737D919B229C4E4AAD5 /* ArchiveOpenPanel.swift in Sources */,
 				AC5EAAC377B394D7320C41A0 /* ArchiveViewModel.swift in Sources */,
+				7C2C5115CE8214AB969F1DC4 /* ArchiveWindowRoot.swift in Sources */,
 				40561945B7C1AC70C655D811 /* AssociableFormat.swift in Sources */,
 				7BCE92C8029826EF592BCB28 /* AutomationService.swift in Sources */,
 				94C7E48D8A37DAE4F420EB1A /* BenchmarkView.swift in Sources */,
@@ -483,8 +500,10 @@
 				0108922640AD3F6564D60974 /* EntryRowStatus.swift in Sources */,
 				BEFBDB4CCA2FC0678925836E /* FileAssociationService.swift in Sources */,
 				FE7A082EE02E5B964C9F9387 /* FileListView.swift in Sources */,
+				5019AA74E44F1B1583212694 /* FocusedValues.swift in Sources */,
 				38BD03CF2D7EBA78927373AC /* InspectorView.swift in Sources */,
 				8EE73705FBEBFDD864570BA2 /* MultiItemDragTrigger.swift in Sources */,
+				AC423679783D05B702E19C8D /* OpenArchiveWindowRegistry.swift in Sources */,
 				3E85614159D091F4BF1DFC95 /* PasswordPromptView.swift in Sources */,
 				FAFB339B9260636F9B15CD68 /* ProfileEditorView.swift in Sources */,
 				9BB9F3766D126B545D43EBD9 /* ProfileStore.swift in Sources */,
@@ -498,6 +517,7 @@
 				305685237A3C663BC0AB31D6 /* SingleInstance.swift in Sources */,
 				BE59663C947B96C3D5703FB9 /* StatusBarView.swift in Sources */,
 				0A065972293A7E0F81DA42C5 /* Uninstaller.swift in Sources */,
+				9338422FF31054919DD48C4D /* WindowAccessor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
