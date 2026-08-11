@@ -28,7 +28,6 @@ enum DragOut {
     struct EntryTransfer: Codable {
         let archiveURL: URL
         let entryPath: String
-        let isDirectory: Bool
     }
 
     /// Parent dir for all drag staging folders. Finder copies the promised
