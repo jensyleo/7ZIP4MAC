@@ -48,8 +48,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 640, minHeight: 400)
         .overlay { dropOverlay }
-        .onDrop(of: [.fileURL, DragOut.crossArchiveType],
-                isTargeted: $isDropTargeted, perform: handleDrop)
+        .overlay { CrossArchiveDropTarget(onDrop: handleCrossArchiveDrop) }
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
         .navigationTitle(viewModel.archiveURL?.lastPathComponent ?? "7ZIP4MAC")
         .toolbar { toolbarContent }
         .inspector(isPresented: $showInspector) {
@@ -520,13 +520,6 @@ struct ContentView: View {
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         guard !providers.isEmpty else { return false }
-        let crossArchiveProviders = providers.filter {
-            $0.hasItemConformingToTypeIdentifier(DragOut.crossArchiveTypeIdentifier)
-        }
-        if !crossArchiveProviders.isEmpty {
-            handleCrossArchiveDrop(crossArchiveProviders)
-            return true
-        }
         Task { @MainActor in
             var urls: [URL] = []
             for provider in providers {
@@ -547,35 +540,14 @@ struct ContentView: View {
         return true
     }
 
-    /// One or more entries dragged in from a *different* 7ZIP4MAC window
-    /// (identified by `DragOut.crossArchiveTypeIdentifier`) rather than a
-    /// plain file from Finder — decodes every transfer and, unless it's a
-    /// no-op drop onto the entries' own archive, asks whether to copy or
-    /// move them in.
-    private func handleCrossArchiveDrop(_ providers: [NSItemProvider]) {
-        Task { @MainActor in
-            var transfers: [DragOut.EntryTransfer] = []
-            for provider in providers {
-                if let transfer = await Self.loadEntryTransfer(from: provider) {
-                    transfers.append(transfer)
-                }
-            }
-            transfers.removeAll { $0.archiveURL == viewModel.archiveURL }
-            guard !transfers.isEmpty else { return }
-            pendingCrossArchiveTransfers = transfers
-        }
-    }
-
-    private static func loadEntryTransfer(from provider: NSItemProvider) async -> DragOut.EntryTransfer? {
-        await withCheckedContinuation { continuation in
-            provider.loadDataRepresentation(forTypeIdentifier: DragOut.crossArchiveTypeIdentifier) { data, _ in
-                guard let data, let transfer = try? JSONDecoder().decode(DragOut.EntryTransfer.self, from: data) else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                continuation.resume(returning: transfer)
-            }
-        }
+    /// One or more entries dragged in from a *different* 7ZIP4MAC window,
+    /// via `CrossArchiveDropTarget` (see its doc comment for why this isn't
+    /// just another case in `handleDrop`) — unless it's a no-op drop onto
+    /// the entries' own archive, asks whether to copy or move them in.
+    private func handleCrossArchiveDrop(_ transfers: [DragOut.EntryTransfer]) {
+        let filtered = transfers.filter { $0.archiveURL != viewModel.archiveURL }
+        guard !filtered.isEmpty else { return }
+        pendingCrossArchiveTransfers = filtered
     }
 
     private static func loadURL(from provider: NSItemProvider) async -> URL? {
@@ -684,27 +656,95 @@ private struct CrossArchiveTransferAlert: ViewModifier {
     @Binding var pendingTransfers: [DragOut.EntryTransfer]?
     var notifyOnAdd: Bool
 
+    /// Set instead of proceeding directly, when one or more dragged entries
+    /// would land on a path this archive already has.
+    private struct OverwriteConflict: Identifiable {
+        let id = UUID()
+        let transfers: [DragOut.EntryTransfer]
+        let conflictingPaths: Set<String>
+        let existingPaths: Set<String>
+        let move: Bool
+
+        var conflictingCount: Int { conflictingPaths.count }
+    }
+    @State private var pendingConflict: OverwriteConflict?
+    /// Set whenever extracting/renaming/adding fails for one or more items —
+    /// `addFiles`/`deleteEntries` already report *their own* failures via
+    /// `viewModel.editMessage`, but a failure earlier in this flow (pulling
+    /// the entry out of the source archive, or renaming it locally) never
+    /// reaches that; this covers it instead of letting it disappear silently.
+    @State private var failureMessage: String?
+
     func body(content: Content) -> some View {
-        content.confirmationDialog(
-            "Add to This Archive?",
-            isPresented: presented,
-            presenting: pendingTransfers
-        ) { transfers in
-            Button(copyTitle(transfers)) { perform(transfers, move: false) }
-            Button(moveTitle(transfers)) { perform(transfers, move: true) }
-            Button("Cancel", role: .cancel) { pendingTransfers = nil }
-        } message: { transfers in
-            Text(message(for: transfers))
-        }
+        content
+            .alert("Couldn’t Add Everything", isPresented: failurePresented, presenting: failureMessage) { _ in
+                Button("OK", role: .cancel) { failureMessage = nil }
+            } message: { message in
+                Text(message)
+            }
+            .confirmationDialog(
+                "Add to This Archive?",
+                isPresented: presented,
+                presenting: pendingTransfers
+            ) { transfers in
+                Button(copyTitle(transfers)) { proceed(transfers, move: false) }
+                Button(moveTitle(transfers)) { proceed(transfers, move: true) }
+                Button("Cancel", role: .cancel) { pendingTransfers = nil }
+            } message: { transfers in
+                Text(message(for: transfers))
+            }
+            .confirmationDialog(
+                "Replace Existing Items?",
+                isPresented: conflictPresented,
+                presenting: pendingConflict
+            ) { conflict in
+                Button("Overwrite", role: .destructive) {
+                    perform(conflict.transfers, move: conflict.move)
+                }
+                Button("Rename…") {
+                    let choices = promptRenames(for: conflict)
+                    // Conflicting items the user cancelled the prompt for are
+                    // left out entirely — cancelling means "don't add this
+                    // one", not "use some name I never agreed to".
+                    let toProcess = conflict.transfers.filter { transfer in
+                        let path = destinationPath(for: transfer)
+                        return !conflict.conflictingPaths.contains(path) || choices[path] != nil
+                    }
+                    guard !toProcess.isEmpty else { return }
+                    perform(toProcess, move: conflict.move, renameChoices: choices)
+                }
+                Button(skipTitle(conflict), role: .cancel) {
+                    let toKeep = conflict.transfers.filter { !conflict.conflictingPaths.contains(destinationPath(for: $0)) }
+                    if !toKeep.isEmpty { perform(toKeep, move: conflict.move) }
+                }
+            } message: { conflict in
+                Text(conflictMessage(for: conflict))
+            }
     }
 
     private var presented: Binding<Bool> {
         Binding(get: { pendingTransfers != nil }, set: { if !$0 { pendingTransfers = nil } })
     }
 
+    private var conflictPresented: Binding<Bool> {
+        Binding(get: { pendingConflict != nil }, set: { if !$0 { pendingConflict = nil } })
+    }
+
+    private var failurePresented: Binding<Bool> {
+        Binding(get: { failureMessage != nil }, set: { if !$0 { failureMessage = nil } })
+    }
+
     private func entryName(_ transfer: DragOut.EntryTransfer) -> String {
         let trimmed = transfer.entryPath.hasSuffix("/") ? String(transfer.entryPath.dropLast()) : transfer.entryPath
         return (trimmed as NSString).lastPathComponent
+    }
+
+    /// Where `transfer` would land in *this* archive: the current folder
+    /// plus its own name — matching how `ArchiveViewModel.addFiles` places
+    /// whatever it's given.
+    private func destinationPath(for transfer: DragOut.EntryTransfer) -> String {
+        let name = entryName(transfer)
+        return viewModel.currentFolder.isEmpty ? name : "\(viewModel.currentFolder)/\(name)"
     }
 
     private func copyTitle(_ transfers: [DragOut.EntryTransfer]) -> String {
@@ -723,13 +763,106 @@ private struct CrossArchiveTransferAlert: ViewModifier {
         return "\(transfers.count) items will be added from “\(sourceName)”. Move Here also removes them from that archive."
     }
 
-    private func perform(_ transfers: [DragOut.EntryTransfer], move: Bool) {
+    private func skipTitle(_ conflict: OverwriteConflict) -> String {
+        conflict.transfers.count > conflict.conflictingCount ? "Skip Conflicting, Add Rest" : "Skip"
+    }
+
+    private func conflictMessage(for conflict: OverwriteConflict) -> String {
+        if conflict.conflictingCount == 1, let onlyPath = conflict.conflictingPaths.first {
+            return "“\((onlyPath as NSString).lastPathComponent)” already exists here. Overwrite replaces it; Rename adds the incoming one alongside it under a new name; Skip leaves the existing one untouched."
+        }
+        return "\(conflict.conflictingCount) of the \(conflict.transfers.count) items already exist here. Overwrite replaces them; Rename adds the incoming ones alongside under new names; Skip leaves the existing ones untouched and adds only the rest."
+    }
+
+    /// Checks for name collisions with what's already in this archive before
+    /// touching anything — asks Overwrite/Rename/Skip only if there actually
+    /// are any, otherwise proceeds immediately.
+    private func proceed(_ transfers: [DragOut.EntryTransfer], move: Bool) {
         pendingTransfers = nil
+        let existingPaths = Set((viewModel.archive?.entries ?? []).map {
+            $0.path.hasSuffix("/") ? String($0.path.dropLast()) : $0.path
+        })
+        let conflictingPaths = Set(transfers.map(destinationPath(for:)).filter { existingPaths.contains($0) })
+        guard !conflictingPaths.isEmpty else {
+            perform(transfers, move: move)
+            return
+        }
+        pendingConflict = OverwriteConflict(
+            transfers: transfers, conflictingPaths: conflictingPaths, existingPaths: existingPaths, move: move
+        )
+    }
+
+    /// The first available "name copy N.ext" that collides with neither
+    /// `taken` (this archive's existing entries) nor anything already
+    /// reserved earlier in the same batch.
+    private func uniqueLocalName(for originalName: String, avoiding taken: Set<String>) -> String {
+        let ext = (originalName as NSString).pathExtension
+        let base = (originalName as NSString).deletingPathExtension
+        func candidate(_ suffix: String) -> String { ext.isEmpty ? "\(base)\(suffix)" : "\(base)\(suffix).\(ext)" }
+        var name = candidate(" copy")
+        var counter = 2
+        while taken.contains(name) {
+            name = candidate(" copy \(counter)")
+            counter += 1
+        }
+        return name
+    }
+
+    /// This archive's existing entry names that are direct children of the
+    /// current folder — the pool a new local name must avoid colliding with.
+    private func existingLocalNames(in existingPaths: Set<String>) -> Set<String> {
+        let folder = viewModel.currentFolder
+        return Set(existingPaths.compactMap { path -> String? in
+            let trimmed = path.hasPrefix(folder.isEmpty ? "" : folder + "/")
+                ? String(path.dropFirst(folder.isEmpty ? 0 : folder.count + 1)) : path
+            return trimmed.contains("/") ? nil : trimmed
+        })
+    }
+
+    /// Asks for a new name for each conflicting item, one prompt at a time,
+    /// pre-filled with a suggested unique one. If the typed name *also*
+    /// collides — with an existing entry or with a name already chosen
+    /// earlier in this same batch — re-prompts instead of silently going
+    /// ahead with a name that would just create another conflict. Cancelling
+    /// a given prompt leaves that item out of the returned map — `perform`
+    /// skips it entirely rather than falling back to an unrequested auto-name.
+    private func promptRenames(for conflict: OverwriteConflict) -> [String: String] {
+        var reserved = existingLocalNames(in: conflict.existingPaths)
+        var choices: [String: String] = [:]
+        for transfer in conflict.transfers {
+            let path = destinationPath(for: transfer)
+            guard conflict.conflictingPaths.contains(path) else { continue }
+            var suggested = uniqueLocalName(for: entryName(transfer), avoiding: reserved)
+            var message = "“\(entryName(transfer))” already exists here. Enter a new name for the incoming item."
+            while true {
+                guard let chosen = PathPromptPanel.present(
+                    title: "Rename Item", message: message, currentValue: suggested
+                ) else { break }
+                guard reserved.contains(chosen) else {
+                    choices[path] = chosen
+                    reserved.insert(chosen)
+                    break
+                }
+                // What they typed collides too — a plain re-prompt instead
+                // of silently accepting it (which would just trade one
+                // overwrite for another) or silently dropping the item.
+                message = "“\(chosen)” also already exists here. Enter a different name."
+                suggested = uniqueLocalName(for: chosen, avoiding: reserved)
+            }
+        }
+        return choices
+    }
+
+    private func perform(
+        _ transfers: [DragOut.EntryTransfer], move: Bool, renameChoices: [String: String] = [:]
+    ) {
+        pendingConflict = nil
         // A `Table` selection is always within one open archive, so in
         // practice every transfer shares the same source — grouped
         // defensively in case that's ever not true.
         let bySource = Dictionary(grouping: transfers, by: \.archiveURL)
         Task {
+            var allFailures: [(name: String, reason: String)] = []
             for (sourceURL, group) in bySource {
                 // The source archive's password, if any, lives only in that
                 // window's own in-memory session — never written to the
@@ -737,25 +870,70 @@ private struct CrossArchiveTransferAlert: ViewModifier {
                 // rather than carried with the drag.
                 let sourceViewModel = OpenArchiveWindowRegistry.viewModel(for: sourceURL)
                 let password = sourceViewModel?.sessionPassword
-                var extractedURLs: [URL] = []
+                // Paired with its source transfer, not just the bare URL —
+                // needed so a failure partway through never causes a Move to
+                // delete a source entry that was never actually copied over.
+                var succeeded: [(transfer: DragOut.EntryTransfer, url: URL)] = []
                 for transfer in group {
                     do {
-                        let extractedURL = try await DragOut.extract(
+                        var extractedURL = try await DragOut.extract(
                             entryPath: transfer.entryPath, archiveURL: sourceURL, password: password
                         )
-                        extractedURLs.append(extractedURL)
+                        if let newName = renameChoices[destinationPath(for: transfer)] {
+                            let renamedURL = extractedURL.deletingLastPathComponent().appendingPathComponent(newName)
+                            try FileManager.default.moveItem(at: extractedURL, to: renamedURL)
+                            extractedURL = renamedURL
+                        }
+                        succeeded.append((transfer, extractedURL))
                     } catch {
-                        ArchiveLog.ui.error("Cross-archive transfer failed: \(error.localizedDescription, privacy: .public)")
+                        let name = entryName(transfer)
+                        ArchiveLog.ui.error("Cross-archive transfer failed for \"\(name, privacy: .public)\": \(error.localizedDescription, privacy: .public)")
+                        allFailures.append((name, error.localizedDescription))
                     }
                 }
-                guard !extractedURLs.isEmpty else { continue }
-                await MainActor.run {
-                    viewModel.addFiles(extractedURLs, notifySuccess: notifyOnAdd)
+                guard !succeeded.isEmpty else { continue }
+                // Awaited deliberately, not fire-and-forget: a Move must
+                // never delete the source entries unless they genuinely
+                // landed in this archive first. If the add itself fails
+                // (unwritable format, disk full, the archive closed
+                // mid-drop…), none of `group` gets deleted from its source —
+                // otherwise a failed Move would just destroy data.
+                do {
+                    try await viewModel.addFilesAwaiting(succeeded.map(\.url))
                     if move {
-                        sourceViewModel?.deleteEntries(paths: group.map(\.entryPath), notifySuccess: false)
+                        await MainActor.run {
+                            sourceViewModel?.deleteEntries(paths: succeeded.map { $0.transfer.entryPath }, notifySuccess: false)
+                        }
+                    }
+                } catch {
+                    ArchiveLog.ui.error("Adding to destination archive failed: \(error.localizedDescription, privacy: .public)")
+                    for (transfer, _) in succeeded {
+                        allFailures.append((entryName(transfer), error.localizedDescription))
                     }
                 }
             }
+            if allFailures.isEmpty {
+                guard notifyOnAdd else { return }
+                await MainActor.run {
+                    viewModel.reportEditResult(
+                        transfers.count == 1
+                            ? "Added “\(entryName(transfers[0]))”."
+                            : "Added \(transfers.count) items."
+                    )
+                }
+                return
+            }
+            await MainActor.run {
+                failureMessage = Self.failureSummary(allFailures)
+            }
         }
+    }
+
+    private static func failureSummary(_ failures: [(name: String, reason: String)]) -> String {
+        if failures.count == 1 {
+            return "Couldn’t add “\(failures[0].name)”: \(failures[0].reason)"
+        }
+        let names = failures.map(\.name).joined(separator: ", ")
+        return "Couldn’t add \(failures.count) items (\(names)). The rest were added normally."
     }
 }

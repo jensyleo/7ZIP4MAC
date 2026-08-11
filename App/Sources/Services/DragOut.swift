@@ -8,19 +8,22 @@ import SevenZipKit
 enum DragOut {
 
     /// Identifies a drag item as "an entry from one of our own archive
-    /// windows" — carried alongside the normal file-promise representation
-    /// so a *different* 7ZIP4MAC window can recognize the drop as a
-    /// cross-archive transfer instead of a plain file from Finder. The
-    /// password isn't included (it never touches the pasteboard); the
-    /// destination window looks up the source archive's live session
-    /// password through ``OpenArchiveWindowRegistry`` instead.
+    /// windows" — declared alongside the normal file-promise types on the
+    /// same `NSFilePromiseProvider` (see `MultiItemDragTrigger`), so a
+    /// *different* 7ZIP4MAC window can recognize the drop as a cross-archive
+    /// transfer instead of a plain file from Finder. The password isn't
+    /// included (it never touches the pasteboard); the destination window
+    /// looks up the source archive's live session password through
+    /// ``OpenArchiveWindowRegistry`` instead.
     ///
-    /// Declared as a real `UTExportedTypeDeclarations` entry in Info.plist
-    /// (not just an ad-hoc string) — SwiftUI's `.onDrop` silently ignores an
-    /// unregistered identifier when deciding whether a drag matches, so
-    /// without that declaration the drop target never saw this type at all.
+    /// Read on the receiving end via `NSDraggingInfo.draggingPasteboard`
+    /// directly (see `CrossArchiveDropTarget`), not through SwiftUI's
+    /// `.onDrop` — that reads incoming drops through
+    /// `NSDraggingInfo.itemProviders`, which doesn't bridge a type declared
+    /// by a `NSFilePromiseProvider` the way it does one declared by a plain
+    /// `NSPasteboardItem`, even though the data is genuinely on the
+    /// pasteboard either way.
     static let crossArchiveTypeIdentifier = "com.jensyleo.sevenzip4mac.archive-entry"
-    static let crossArchiveType = UTType(crossArchiveTypeIdentifier)!
 
     struct EntryTransfer: Codable {
         let archiveURL: URL

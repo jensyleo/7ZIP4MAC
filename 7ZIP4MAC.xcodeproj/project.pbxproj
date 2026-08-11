@@ -39,6 +39,7 @@
 		57E08C14CB70E1F3B7A478B5 /* zip.icns in Resources */ = {isa = PBXBuildFile; fileRef = F8F63E7310951B48A417E450 /* zip.icns */; };
 		5A26220A48169DCE1D595EA9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9723DD1A0D6831A166C3CB26 /* SettingsView.swift */; };
 		5CD4069DB82A1B123052F19C /* Engine in Resources */ = {isa = PBXBuildFile; fileRef = 3DB4EC54D03D72544DFF406B /* Engine */; };
+		601B42E135C63E4B28C15B0D /* CrossArchiveDropTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F2D8E15384A285B09FADEDD /* CrossArchiveDropTarget.swift */; };
 		614ACFE913ED77A433649429 /* DragOut.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2001126EBDA2E2C61E0B03 /* DragOut.swift */; };
 		67CD1054CA88DCCF3488851C /* dmg.icns in Resources */ = {isa = PBXBuildFile; fileRef = 6A6A03985870DE2A4D1B3B75 /* dmg.icns */; };
 		685D34F7FFDF8CA044F656D8 /* rar.icns in Resources */ = {isa = PBXBuildFile; fileRef = 27674259D5F3F91C3DF57C30 /* rar.icns */; };
@@ -115,6 +116,7 @@
 		6B1C6F8B683CDF7CB67D4FEB /* cpio.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = cpio.icns; sourceTree = "<group>"; };
 		6DC12AEAEFA8258C0AB91E6A /* lzma.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = lzma.icns; sourceTree = "<group>"; };
 		6E01E9EBBBE38370F1EDE334 /* FileAssociationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileAssociationService.swift; sourceTree = "<group>"; };
+		6F2D8E15384A285B09FADEDD /* CrossArchiveDropTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossArchiveDropTarget.swift; sourceTree = "<group>"; };
 		6F78946EFCA0922C92685D8E /* Uninstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Uninstaller.swift; sourceTree = "<group>"; };
 		7193253F84D3E8B6FEF6F919 /* EntryIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryIcon.swift; sourceTree = "<group>"; };
 		721D4362190285C8AC5941F9 /* 7ZIP4MAC.sdef */ = {isa = PBXFileReference; path = 7ZIP4MAC.sdef; sourceTree = "<group>"; };
@@ -262,6 +264,7 @@
 				7E20B709BB37C4BFA8D2A735 /* CompressionFlow.swift */,
 				AE93817FFC5CAC3D517CD570 /* CompressionOptionsView.swift */,
 				9BA5C7EF39C763F209A97712 /* ContentView.swift */,
+				6F2D8E15384A285B09FADEDD /* CrossArchiveDropTarget.swift */,
 				E46597CFD0AC275D45EEBA80 /* EmptyStateView.swift */,
 				7193253F84D3E8B6FEF6F919 /* EntryIcon.swift */,
 				C19245B70004DBB9CB6279E4 /* EntryRowStatus.swift */,
@@ -494,6 +497,7 @@
 				D2FD65ECAC98F031827BB620 /* CompressionOptionsView.swift in Sources */,
 				690023DEACC45CCD6BC8872F /* CompressionViewModel.swift in Sources */,
 				B0A1D211B9E8AB55AA847032 /* ContentView.swift in Sources */,
+				601B42E135C63E4B28C15B0D /* CrossArchiveDropTarget.swift in Sources */,
 				614ACFE913ED77A433649429 /* DragOut.swift in Sources */,
 				D5B16D0F6ADBFF8FE6875F52 /* EmptyStateView.swift in Sources */,
 				28E2B77AEFA2A1246374FE3A /* EntryIcon.swift in Sources */,

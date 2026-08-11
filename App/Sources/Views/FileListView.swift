@@ -69,10 +69,7 @@ struct FileListView: View {
                     selectedEntries: {
                         viewModel.visibleEntries.filter { selection.contains($0.id) && !$0.isParentLink }
                     },
-                    onPlainClick: {
-                        selection = [entry.id]
-                        selectionAnchor = entry.id
-                    },
+                    onPlainClick: { handleClick(on: entry) },
                     onDoubleClick: { activate(entry) }
                 ))
             }
