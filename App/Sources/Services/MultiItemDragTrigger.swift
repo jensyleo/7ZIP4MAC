@@ -10,20 +10,53 @@ import SevenZipKit
 /// files in Finder, one per provider — which is exactly the gap `.onDrag`
 /// can't close for a `Table` multi-selection (only the row the drag started
 /// from is ever included, regardless of how much else is selected).
+///
+/// Also declares `DragOut.crossArchiveTypeIdentifier` alongside its normal
+/// file-promise types (see the `writableTypes`/`pasteboardPropertyList`
+/// overrides below), so a *different* 7ZIP4MAC window can recognize this
+/// same item as "an entry from one of our own archives". That data really
+/// does land on the drag pasteboard — confirmed by reading it directly via
+/// `NSDraggingInfo.draggingPasteboard` in `CrossArchiveDropTarget`. It does
+/// *not*, however, surface through `NSDraggingInfo.itemProviders` (the
+/// bridge SwiftUI's own `.onDrop` reads incoming drops through), which only
+/// recognizes types a plain `NSPasteboardItem` declares — that's why this
+/// one item needs its own dedicated AppKit drop destination instead of
+/// being picked up by `.onDrop` like a normal file drop.
 private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFilePromiseProviderDelegate {
     private let archiveURL: URL
     private let entryPath: String
     private let entryName: String
     private let password: String?
+    private let crossArchiveTransferData: Data?
 
-    init(archiveURL: URL, entryPath: String, entryName: String, password: String?, typeIdentifier: String) {
+    init(
+        archiveURL: URL, entryPath: String, entryName: String, password: String?,
+        typeIdentifier: String, isDirectory: Bool
+    ) {
         self.archiveURL = archiveURL
         self.entryPath = entryPath
         self.entryName = entryName
         self.password = password
+        let transfer = DragOut.EntryTransfer(archiveURL: archiveURL, entryPath: entryPath, isDirectory: isDirectory)
+        self.crossArchiveTransferData = try? JSONEncoder().encode(transfer)
         super.init()
         fileType = typeIdentifier
         delegate = self
+    }
+
+    override func writableTypes(for pasteboard: NSPasteboard) -> [NSPasteboard.PasteboardType] {
+        var types = super.writableTypes(for: pasteboard)
+        if crossArchiveTransferData != nil {
+            types.append(NSPasteboard.PasteboardType(DragOut.crossArchiveTypeIdentifier))
+        }
+        return types
+    }
+
+    override func pasteboardPropertyList(forType type: NSPasteboard.PasteboardType) -> Any? {
+        if type.rawValue == DragOut.crossArchiveTypeIdentifier {
+            return crossArchiveTransferData
+        }
+        return super.pasteboardPropertyList(forType: type)
     }
 
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
@@ -56,18 +89,6 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         }
     }
 }
-
-/// A fully transparent 1×1 image, shared by every companion drag item below
-/// — cheap to construct once since AppKit copies/renders from it, never
-/// mutates it.
-private let invisiblePixel: NSImage = {
-    let image = NSImage(size: NSSize(width: 1, height: 1))
-    image.lockFocus()
-    NSColor.clear.set()
-    NSBezierPath.fill(NSRect(x: 0, y: 0, width: 1, height: 1))
-    image.unlockFocus()
-    return image
-}()
 
 /// A transparent AppKit view overlaid on a `Table` row's Name cell — but
 /// only for rows that are already part of a multi-selection (see
@@ -131,43 +152,18 @@ final class MultiItemDragTriggerView: NSView, NSDraggingSource {
 
     private func beginMultiDrag(with event: NSEvent, archiveURL: URL) {
         let icon = NSWorkspace.shared.icon(for: .data)
-        var items: [NSDraggingItem] = []
-        for entry in entries {
+        let items: [NSDraggingItem] = entries.map { entry in
             let provider = ArchiveEntryFilePromiseProvider(
                 archiveURL: archiveURL,
                 entryPath: entry.path,
                 entryName: entry.name,
                 password: password,
-                typeIdentifier: DragOut.typeIdentifier(for: entry)
+                typeIdentifier: DragOut.typeIdentifier(for: entry),
+                isDirectory: entry.isDirectory
             )
             let draggingItem = NSDraggingItem(pasteboardWriter: provider)
             draggingItem.setDraggingFrame(bounds, contents: icon)
-            items.append(draggingItem)
-
-            // A second, companion item carrying just the transfer metadata —
-            // recognized by a *different* 7ZIP4MAC window's drop target as
-            // "this came from one of our own archives", so it can offer a
-            // copy/move instead of treating the drop as a plain file.
-            // `NSFilePromiseProvider` (above) doesn't work for this even
-            // with its own pasteboard-writing overridden to add this same
-            // type: AppKit's `NSDraggingInfo.itemProviders` bridge — what
-            // SwiftUI's `.onDrop` reads incoming drops through — only
-            // recognizes types a plain `NSPasteboardItem` declares, not a
-            // file promise's. A truly invisible companion item (zero image
-            // components) made the whole drag silently fail to start, so
-            // this one instead carries an actual — but fully transparent,
-            // 1×1 — image, which keeps AppKit happy without being seen.
-            let transfer = DragOut.EntryTransfer(archiveURL: archiveURL, entryPath: entry.path, isDirectory: entry.isDirectory)
-            if let data = try? JSONEncoder().encode(transfer) {
-                let crossArchiveItem = NSPasteboardItem()
-                crossArchiveItem.setData(data, forType: NSPasteboard.PasteboardType(DragOut.crossArchiveTypeIdentifier))
-                let crossArchiveDraggingItem = NSDraggingItem(pasteboardWriter: crossArchiveItem)
-                crossArchiveDraggingItem.setDraggingFrame(
-                    NSRect(x: bounds.midX, y: bounds.midY, width: 1, height: 1),
-                    contents: invisiblePixel
-                )
-                items.append(crossArchiveDraggingItem)
-            }
+            return draggingItem
         }
         beginDraggingSession(with: items, event: event, source: self)
     }

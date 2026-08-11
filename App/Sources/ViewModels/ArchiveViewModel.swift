@@ -365,34 +365,10 @@ public final class ArchiveViewModel {
     /// "add under this internal path" option; it only takes the archive path
     /// from the source's own path relative to the working directory.
     public func addFiles(_ sources: [URL], notifySuccess: Bool = true) {
-        guard case .loaded(let archive) = state, !sources.isEmpty else { return }
-        guard let format = Self.writableFormat(for: archive) else {
-            editMessage = Self.unwritableFormatMessage(for: archive)
-            return
-        }
-        let folder = currentFolder
-        Task { [serviceProvider] in
-            let scratch = FileManager.default.temporaryDirectory
-                .appendingPathComponent("7ZIP4MAC-Add-\(UUID().uuidString)", isDirectory: true)
-            defer { try? FileManager.default.removeItem(at: scratch) }
+        guard !sources.isEmpty else { return }
+        Task {
             do {
-                let destRoot = folder.isEmpty ? scratch : scratch.appendingPathComponent(folder, isDirectory: true)
-                try FileManager.default.createDirectory(at: destRoot, withIntermediateDirectories: true)
-                for source in sources {
-                    try FileManager.default.copyItem(at: source, to: destRoot.appendingPathComponent(source.lastPathComponent))
-                }
-                // Whatever ended up directly inside `scratch` is what gets
-                // added — either the files themselves (root) or the first
-                // folder segment of `currentFolder` (preserving its nesting).
-                let topLevelItems = try FileManager.default.contentsOfDirectory(at: scratch, includingPropertiesForKeys: nil)
-
-                let service = try serviceProvider()
-                let password = self.sessionPassword
-                try await service.compress(
-                    CompressionRequest(destinationURL: archive.url, sourceURLs: topLevelItems, format: format, password: password),
-                    progress: { _ in }
-                )
-                try await self.reload(url: archive.url, password: password)
+                try await self.addFilesCore(sources)
                 guard notifySuccess else { return }
                 self.editMessage = sources.count == 1
                     ? "Added “\(sources[0].lastPathComponent)”."
@@ -401,6 +377,59 @@ public final class ArchiveViewModel {
                 self.editMessage = Self.describe(error)
             }
         }
+    }
+
+    /// Same operation as ``addFiles(_:notifySuccess:)``, but awaits
+    /// completion and throws instead of only ever reporting failure via
+    /// `editMessage` — for a caller that has something irreversible of its
+    /// own to do right after (a cross-archive Move deleting the entries from
+    /// their source archive) and needs to know whether this genuinely
+    /// succeeded *before* doing that, not find out from an alert afterward.
+    public func addFilesAwaiting(_ sources: [URL]) async throws {
+        guard !sources.isEmpty else { return }
+        try await addFilesCore(sources)
+    }
+
+    private struct AddFilesError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    /// Adds files/folders into the archive under the folder currently being
+    /// browsed (appends via `compress`, which is `7zz a` — an append/update
+    /// when the destination archive already exists) and refreshes the listing.
+    ///
+    /// To land items under `currentFolder` rather than always at the
+    /// archive's root, each source is staged into a scratch folder that
+    /// mirrors `currentFolder`'s path before compressing — `7zz a` has no
+    /// "add under this internal path" option; it only takes the archive path
+    /// from the source's own path relative to the working directory.
+    private func addFilesCore(_ sources: [URL]) async throws {
+        guard case .loaded(let archive) = state else { return }
+        guard let format = Self.writableFormat(for: archive) else {
+            throw AddFilesError(message: Self.unwritableFormatMessage(for: archive))
+        }
+        let folder = currentFolder
+        let scratch = FileManager.default.temporaryDirectory
+            .appendingPathComponent("7ZIP4MAC-Add-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let destRoot = folder.isEmpty ? scratch : scratch.appendingPathComponent(folder, isDirectory: true)
+        try FileManager.default.createDirectory(at: destRoot, withIntermediateDirectories: true)
+        for source in sources {
+            try FileManager.default.copyItem(at: source, to: destRoot.appendingPathComponent(source.lastPathComponent))
+        }
+        // Whatever ended up directly inside `scratch` is what gets added —
+        // either the files themselves (root) or the first folder segment of
+        // `currentFolder` (preserving its nesting).
+        let topLevelItems = try FileManager.default.contentsOfDirectory(at: scratch, includingPropertiesForKeys: nil)
+
+        let service = try serviceProvider()
+        let password = self.sessionPassword
+        try await service.compress(
+            CompressionRequest(destinationURL: archive.url, sourceURLs: topLevelItems, format: format, password: password),
+            progress: { _ in }
+        )
+        try await self.reload(url: archive.url, password: password)
     }
 
     /// Deletes entries from the archive in place and refreshes the listing.
@@ -427,6 +456,25 @@ public final class ArchiveViewModel {
     /// Moves (or renames) an entry to a new path within the same archive.
     public func moveEntry(path: String, toPath newPath: String, notifySuccess: Bool = true) {
         guard case .loaded(let archive) = state, path != newPath else { return }
+        // 7-Zip's `rn` doesn't check this itself — asked to rename onto a
+        // path that's already taken, it silently creates a second entry
+        // with that same name instead of erroring or replacing it, which
+        // looks like data loss the next time either one is opened (whichever
+        // 7-Zip happens to read first "wins", the other's content is still
+        // there but orphaned under a name nothing lists as available).
+        if Self.pathExists(newPath, in: archive.entries) {
+            // Deferred a beat, not set synchronously: this runs right as
+            // `PathPromptPanel`'s modal `NSAlert` is still tearing down, and
+            // SwiftUI's own `.alert` can silently fail to present a new one
+            // triggered *that* immediately after — the (also
+            // Task-suspension-deferred) success path below never hits this
+            // because it's already at least one run-loop turn later by the
+            // time it sets `editMessage`.
+            Task { @MainActor in
+                self.editMessage = "An item named “\((newPath as NSString).lastPathComponent)” already exists here."
+            }
+            return
+        }
         Task { [serviceProvider] in
             do {
                 let service = try serviceProvider()
@@ -450,7 +498,21 @@ public final class ArchiveViewModel {
     public func copyEntry(path: String, toPath newPath: String, notifySuccess: Bool = true) {
         guard case .loaded(let archive) = state, path != newPath else { return }
         guard let format = Self.writableFormat(for: archive) else {
-            editMessage = Self.unwritableFormatMessage(for: archive)
+            // Deferred a beat — see the matching comment in `moveEntry`;
+            // this runs at the same "right after a modal `NSAlert` closes"
+            // moment, with the same risk of SwiftUI silently failing to
+            // present a new `.alert` triggered that immediately.
+            let message = Self.unwritableFormatMessage(for: archive)
+            Task { @MainActor in self.editMessage = message }
+            return
+        }
+        // Unlike `rn`, `a` (what this ends up calling) does replace a
+        // matching path rather than duplicating it — but still silently,
+        // with no confirmation, so this is checked here for the same reason.
+        if Self.pathExists(newPath, in: archive.entries) {
+            Task { @MainActor in
+                self.editMessage = "An item named “\((newPath as NSString).lastPathComponent)” already exists here."
+            }
             return
         }
         Task { [serviceProvider] in
@@ -502,8 +564,28 @@ public final class ArchiveViewModel {
         editMessage = nil
     }
 
+    /// Surfaces `message` through the same "Edit Archive" alert every other
+    /// edit operation here uses — for a caller (a cross-archive transfer)
+    /// that already knows its own outcome and just needs to show it, without
+    /// duplicating its own alert plumbing for what's really the same kind of
+    /// message.
+    public func reportEditResult(_ message: String) {
+        editMessage = message
+    }
+
     private static func describe(_ error: Error) -> String {
         (error as? ArchiveError)?.localizedDescription ?? error.localizedDescription
+    }
+
+    /// Whether `path` already names an entry in `entries` — trailing slashes
+    /// (how folders are stored) normalized away so a file and a
+    /// same-named folder are still correctly seen as a collision.
+    private static func pathExists(_ path: String, in entries: [ArchiveEntry]) -> Bool {
+        let normalized = path.hasSuffix("/") ? String(path.dropLast()) : path
+        return entries.contains { entry in
+            let entryPath = entry.path.hasSuffix("/") ? String(entry.path.dropLast()) : entry.path
+            return entryPath == normalized
+        }
     }
 
     /// The container format to use when writing back into `archive` (Add,
