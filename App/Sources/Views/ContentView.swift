@@ -15,7 +15,10 @@ struct ContentView: View {
     @State private var isDropTargeted = false
     @State private var pendingDeletePaths: [String]?
     @State private var pendingDroppedURLs: [URL]?
+    @State private var pendingCrossArchiveTransfers: [DragOut.EntryTransfer]?
     @AppStorage("showInspector") private var showInspector = false
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         Group {
@@ -24,7 +27,7 @@ struct ContentView: View {
                 EmptyStateView(
                     onOpen: presentOpenPanel,
                     recents: recents.existing,
-                    onOpenRecent: { url in selection = []; viewModel.open(url: url) }
+                    onOpenRecent: { url in openRespectingCurrentArchive(url) }
                 )
             case .loading(let url):
                 LoadingStateView(url: url)
@@ -45,7 +48,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 640, minHeight: 400)
         .overlay { dropOverlay }
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
+        .onDrop(of: [.fileURL, DragOut.crossArchiveType],
+                isTargeted: $isDropTargeted, perform: handleDrop)
         .navigationTitle(viewModel.archiveURL?.lastPathComponent ?? "7ZIP4MAC")
         .toolbar { toolbarContent }
         .inspector(isPresented: $showInspector) {
@@ -86,8 +90,7 @@ struct ContentView: View {
             profileStore: profileStore,
             revealWhenDone: settings.revealInFinderWhenDone,
             onOpenCreated: { url in
-                selection = []
-                viewModel.open(url: url)
+                openRespectingCurrentArchive(url)
             }
         ))
         .onAppear { viewModel.showHiddenEntries = settings.showHiddenEntries }
@@ -97,7 +100,6 @@ struct ContentView: View {
         .onChange(of: finishedDestination) { _, destination in
             dismissExtractionResultIfQuiet(destination)
         }
-        .onOpenURL { url in handleIncoming(url) }
         .alert("Archive Test", isPresented: testPresented, presenting: viewModel.testMessage) { _ in
             Button("OK", role: .cancel) { viewModel.dismissTest() }
         } message: { message in
@@ -113,6 +115,11 @@ struct ContentView: View {
             viewModel: viewModel,
             pendingDroppedURLs: $pendingDroppedURLs,
             selection: $selection,
+            notifyOnAdd: settings.notifyOnAdd
+        ))
+        .modifier(CrossArchiveTransferAlert(
+            viewModel: viewModel,
+            pendingTransfers: $pendingCrossArchiveTransfers,
             notifyOnAdd: settings.notifyOnAdd
         ))
         .sheet(isPresented: passwordPromptPresented) {
@@ -141,16 +148,25 @@ struct ContentView: View {
         )
     }
 
-
-    /// Routes an incoming file-open (double-click / "Open With") to opening
-    /// the archive.
-    private func handleIncoming(_ url: URL) {
-        switch AppURLRouter.command(for: url) {
-        case .openArchive(let archiveURL):
+    /// Focuses `url`'s window if it's already open somewhere; otherwise loads
+    /// it into this window if it's empty, or opens a separate window for it —
+    /// this window's archive, if any, is never silently replaced.
+    private func openRespectingCurrentArchive(_ url: URL) {
+        let focused = OpenArchiveWindowRegistry.focusIfOpen(url)
+        if focused {
+            // macOS opens a brand-new default (empty) window for every
+            // "open this file" request that reaches an already-running app —
+            // that's this window. Its job was only ever to route this
+            // request; now that an existing window took it, an empty one
+            // left behind would just be litter.
+            if viewModel.archive == nil { dismissWindow() }
+            return
+        }
+        if viewModel.archive != nil {
+            openWindow(value: url as URL?)
+        } else {
             selection = []
-            viewModel.open(url: archiveURL)
-        case .none:
-            break
+            viewModel.open(url: url)
         }
     }
 
@@ -388,8 +404,7 @@ struct ContentView: View {
 
     private func presentOpenPanel() {
         guard let url = ArchiveOpenPanel.present() else { return }
-        selection = []
-        viewModel.open(url: url)
+        openRespectingCurrentArchive(url)
     }
 
     /// When the completion dialog is disabled, extraction just finishes
@@ -505,6 +520,13 @@ struct ContentView: View {
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         guard !providers.isEmpty else { return false }
+        let crossArchiveProviders = providers.filter {
+            $0.hasItemConformingToTypeIdentifier(DragOut.crossArchiveTypeIdentifier)
+        }
+        if !crossArchiveProviders.isEmpty {
+            handleCrossArchiveDrop(crossArchiveProviders)
+            return true
+        }
         Task { @MainActor in
             var urls: [URL] = []
             for provider in providers {
@@ -523,6 +545,37 @@ struct ContentView: View {
             }
         }
         return true
+    }
+
+    /// One or more entries dragged in from a *different* 7ZIP4MAC window
+    /// (identified by `DragOut.crossArchiveTypeIdentifier`) rather than a
+    /// plain file from Finder — decodes every transfer and, unless it's a
+    /// no-op drop onto the entries' own archive, asks whether to copy or
+    /// move them in.
+    private func handleCrossArchiveDrop(_ providers: [NSItemProvider]) {
+        Task { @MainActor in
+            var transfers: [DragOut.EntryTransfer] = []
+            for provider in providers {
+                if let transfer = await Self.loadEntryTransfer(from: provider) {
+                    transfers.append(transfer)
+                }
+            }
+            transfers.removeAll { $0.archiveURL == viewModel.archiveURL }
+            guard !transfers.isEmpty else { return }
+            pendingCrossArchiveTransfers = transfers
+        }
+    }
+
+    private static func loadEntryTransfer(from provider: NSItemProvider) async -> DragOut.EntryTransfer? {
+        await withCheckedContinuation { continuation in
+            provider.loadDataRepresentation(forTypeIdentifier: DragOut.crossArchiveTypeIdentifier) { data, _ in
+                guard let data, let transfer = try? JSONDecoder().decode(DragOut.EntryTransfer.self, from: data) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: transfer)
+            }
+        }
     }
 
     private static func loadURL(from provider: NSItemProvider) async -> URL? {
@@ -586,6 +639,7 @@ private struct DropAlerts: ViewModifier {
     @Binding var pendingDroppedURLs: [URL]?
     @Binding var selection: Set<ArchiveEntry.ID>
     var notifyOnAdd: Bool
+    @Environment(\.openWindow) private var openWindow
 
     func body(content: Content) -> some View {
         content.confirmationDialog(
@@ -599,8 +653,9 @@ private struct DropAlerts: ViewModifier {
             }
             if urls.count == 1 {
                 Button("Open “\(urls[0].lastPathComponent)” Instead") {
-                    selection = []
-                    viewModel.open(url: urls[0])
+                    if !OpenArchiveWindowRegistry.focusIfOpen(urls[0]) {
+                        openWindow(value: urls[0] as URL?)
+                    }
                     pendingDroppedURLs = nil
                 }
             }
@@ -617,5 +672,90 @@ private struct DropAlerts: ViewModifier {
     private func dropMessage(for urls: [URL]) -> String {
         guard urls.count == 1 else { return "You dropped \(urls.count) items." }
         return "You dropped “\(urls[0].lastPathComponent)”."
+    }
+}
+
+/// An entry dragged in from another 7ZIP4MAC window — asks whether to copy
+/// it into this archive or move it (copy here, then delete from the source).
+/// Extraction from the source archive and adding into this one both go
+/// through the same engine calls as any other extract/add, just chained.
+private struct CrossArchiveTransferAlert: ViewModifier {
+    @Bindable var viewModel: ArchiveViewModel
+    @Binding var pendingTransfers: [DragOut.EntryTransfer]?
+    var notifyOnAdd: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Add to This Archive?",
+            isPresented: presented,
+            presenting: pendingTransfers
+        ) { transfers in
+            Button(copyTitle(transfers)) { perform(transfers, move: false) }
+            Button(moveTitle(transfers)) { perform(transfers, move: true) }
+            Button("Cancel", role: .cancel) { pendingTransfers = nil }
+        } message: { transfers in
+            Text(message(for: transfers))
+        }
+    }
+
+    private var presented: Binding<Bool> {
+        Binding(get: { pendingTransfers != nil }, set: { if !$0 { pendingTransfers = nil } })
+    }
+
+    private func entryName(_ transfer: DragOut.EntryTransfer) -> String {
+        let trimmed = transfer.entryPath.hasSuffix("/") ? String(transfer.entryPath.dropLast()) : transfer.entryPath
+        return (trimmed as NSString).lastPathComponent
+    }
+
+    private func copyTitle(_ transfers: [DragOut.EntryTransfer]) -> String {
+        transfers.count == 1 ? "Copy Here" : "Copy \(transfers.count) Items Here"
+    }
+
+    private func moveTitle(_ transfers: [DragOut.EntryTransfer]) -> String {
+        transfers.count == 1 ? "Move Here" : "Move \(transfers.count) Items Here"
+    }
+
+    private func message(for transfers: [DragOut.EntryTransfer]) -> String {
+        let sourceName = transfers.first?.archiveURL.lastPathComponent ?? "the other archive"
+        if transfers.count == 1 {
+            return "“\(entryName(transfers[0]))” will be added from “\(sourceName)”. Move Here also removes it from that archive."
+        }
+        return "\(transfers.count) items will be added from “\(sourceName)”. Move Here also removes them from that archive."
+    }
+
+    private func perform(_ transfers: [DragOut.EntryTransfer], move: Bool) {
+        pendingTransfers = nil
+        // A `Table` selection is always within one open archive, so in
+        // practice every transfer shares the same source — grouped
+        // defensively in case that's ever not true.
+        let bySource = Dictionary(grouping: transfers, by: \.archiveURL)
+        Task {
+            for (sourceURL, group) in bySource {
+                // The source archive's password, if any, lives only in that
+                // window's own in-memory session — never written to the
+                // pasteboard — so it's looked up live through the registry
+                // rather than carried with the drag.
+                let sourceViewModel = OpenArchiveWindowRegistry.viewModel(for: sourceURL)
+                let password = sourceViewModel?.sessionPassword
+                var extractedURLs: [URL] = []
+                for transfer in group {
+                    do {
+                        let extractedURL = try await DragOut.extract(
+                            entryPath: transfer.entryPath, archiveURL: sourceURL, password: password
+                        )
+                        extractedURLs.append(extractedURL)
+                    } catch {
+                        ArchiveLog.ui.error("Cross-archive transfer failed: \(error.localizedDescription, privacy: .public)")
+                    }
+                }
+                guard !extractedURLs.isEmpty else { continue }
+                await MainActor.run {
+                    viewModel.addFiles(extractedURLs, notifySuccess: notifyOnAdd)
+                    if move {
+                        sourceViewModel?.deleteEntries(paths: group.map(\.entryPath), notifySuccess: false)
+                    }
+                }
+            }
+        }
     }
 }

@@ -26,3 +26,6 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# Local-only pending-task list (never published)
+TODO.md

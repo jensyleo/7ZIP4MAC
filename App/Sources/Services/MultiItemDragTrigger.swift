@@ -57,6 +57,18 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
     }
 }
 
+/// A fully transparent 1×1 image, shared by every companion drag item below
+/// — cheap to construct once since AppKit copies/renders from it, never
+/// mutates it.
+private let invisiblePixel: NSImage = {
+    let image = NSImage(size: NSSize(width: 1, height: 1))
+    image.lockFocus()
+    NSColor.clear.set()
+    NSBezierPath.fill(NSRect(x: 0, y: 0, width: 1, height: 1))
+    image.unlockFocus()
+    return image
+}()
+
 /// A transparent AppKit view overlaid on a `Table` row's Name cell — but
 /// only for rows that are already part of a multi-selection (see
 /// `EntryDragModifier`). It disambiguates the very same mouse-down between a
@@ -119,7 +131,8 @@ final class MultiItemDragTriggerView: NSView, NSDraggingSource {
 
     private func beginMultiDrag(with event: NSEvent, archiveURL: URL) {
         let icon = NSWorkspace.shared.icon(for: .data)
-        let items: [NSDraggingItem] = entries.map { entry in
+        var items: [NSDraggingItem] = []
+        for entry in entries {
             let provider = ArchiveEntryFilePromiseProvider(
                 archiveURL: archiveURL,
                 entryPath: entry.path,
@@ -129,7 +142,32 @@ final class MultiItemDragTriggerView: NSView, NSDraggingSource {
             )
             let draggingItem = NSDraggingItem(pasteboardWriter: provider)
             draggingItem.setDraggingFrame(bounds, contents: icon)
-            return draggingItem
+            items.append(draggingItem)
+
+            // A second, companion item carrying just the transfer metadata —
+            // recognized by a *different* 7ZIP4MAC window's drop target as
+            // "this came from one of our own archives", so it can offer a
+            // copy/move instead of treating the drop as a plain file.
+            // `NSFilePromiseProvider` (above) doesn't work for this even
+            // with its own pasteboard-writing overridden to add this same
+            // type: AppKit's `NSDraggingInfo.itemProviders` bridge — what
+            // SwiftUI's `.onDrop` reads incoming drops through — only
+            // recognizes types a plain `NSPasteboardItem` declares, not a
+            // file promise's. A truly invisible companion item (zero image
+            // components) made the whole drag silently fail to start, so
+            // this one instead carries an actual — but fully transparent,
+            // 1×1 — image, which keeps AppKit happy without being seen.
+            let transfer = DragOut.EntryTransfer(archiveURL: archiveURL, entryPath: entry.path, isDirectory: entry.isDirectory)
+            if let data = try? JSONEncoder().encode(transfer) {
+                let crossArchiveItem = NSPasteboardItem()
+                crossArchiveItem.setData(data, forType: NSPasteboard.PasteboardType(DragOut.crossArchiveTypeIdentifier))
+                let crossArchiveDraggingItem = NSDraggingItem(pasteboardWriter: crossArchiveItem)
+                crossArchiveDraggingItem.setDraggingFrame(
+                    NSRect(x: bounds.midX, y: bounds.midY, width: 1, height: 1),
+                    contents: invisiblePixel
+                )
+                items.append(crossArchiveDraggingItem)
+            }
         }
         beginDraggingSession(with: items, event: event, source: self)
     }
