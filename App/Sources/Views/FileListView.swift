@@ -138,7 +138,7 @@ struct FileListView: View {
                     return nil
                 }
                 return event
-            case 51, 117 where !selection.isEmpty: // kVK_Delete, kVK_ForwardDelete
+            case 51 where !selection.isEmpty, 117 where !selection.isEmpty: // kVK_Delete, kVK_ForwardDelete
                 onDeleteSelection()
                 return nil
             default:

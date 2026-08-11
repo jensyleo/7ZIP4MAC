@@ -28,7 +28,7 @@ struct CompressFilesIntent: AppIntent {
 
         var sources: [URL] = []
         for file in files {
-            let url = scratch.appendingPathComponent(file.filename ?? UUID().uuidString)
+            let url = scratch.appendingPathComponent(file.filename.isEmpty ? UUID().uuidString : file.filename)
             try file.data.write(to: url)
             sources.append(url)
         }
@@ -65,7 +65,7 @@ struct ExtractArchiveIntent: AppIntent {
         let scratch = try makeScratchDirectory()
         defer { try? FileManager.default.removeItem(at: scratch) }
 
-        let archiveURL = scratch.appendingPathComponent(archive.filename ?? "archive")
+        let archiveURL = scratch.appendingPathComponent(archive.filename.isEmpty ? "archive" : archive.filename)
         try archive.data.write(to: archiveURL)
 
         let destination = scratch.appendingPathComponent("Extracted", isDirectory: true)

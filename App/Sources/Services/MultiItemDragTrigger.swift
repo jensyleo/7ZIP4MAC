@@ -31,13 +31,13 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
 
     init(
         archiveURL: URL, entryPath: String, entryName: String, password: String?,
-        typeIdentifier: String, isDirectory: Bool
+        typeIdentifier: String
     ) {
         self.archiveURL = archiveURL
         self.entryPath = entryPath
         self.entryName = entryName
         self.password = password
-        let transfer = DragOut.EntryTransfer(archiveURL: archiveURL, entryPath: entryPath, isDirectory: isDirectory)
+        let transfer = DragOut.EntryTransfer(archiveURL: archiveURL, entryPath: entryPath)
         self.crossArchiveTransferData = try? JSONEncoder().encode(transfer)
         super.init()
         fileType = typeIdentifier
@@ -158,8 +158,7 @@ final class MultiItemDragTriggerView: NSView, NSDraggingSource {
                 entryPath: entry.path,
                 entryName: entry.name,
                 password: password,
-                typeIdentifier: DragOut.typeIdentifier(for: entry),
-                isDirectory: entry.isDirectory
+                typeIdentifier: DragOut.typeIdentifier(for: entry)
             )
             let draggingItem = NSDraggingItem(pasteboardWriter: provider)
             draggingItem.setDraggingFrame(bounds, contents: icon)
