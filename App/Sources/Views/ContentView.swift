@@ -11,6 +11,7 @@ struct ContentView: View {
     @Bindable var settings: AppSettings
     @Bindable var profileStore: ProfileStore
     @Bindable var recents: RecentsStore
+    let quickLookController: QuickLookPanelController?
     @State private var selection: Set<ArchiveEntry.ID> = []
     @State private var isDropTargeted = false
     @State private var pendingDeletePaths: [String]?
@@ -21,70 +22,7 @@ struct ContentView: View {
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        Group {
-            switch viewModel.state {
-            case .empty:
-                EmptyStateView(
-                    onOpen: presentOpenPanel,
-                    recents: recents.existing,
-                    onOpenRecent: { url in openRespectingCurrentArchive(url) }
-                )
-            case .loading(let url):
-                LoadingStateView(url: url)
-            case .failed(let message):
-                FailureStateView(message: message, onRetry: presentOpenPanel)
-            case .loaded(let archive):
-                VStack(spacing: 0) {
-                    FileListView(viewModel: viewModel, selection: $selection,
-                                 onQuickLook: performQuickLook, onExtractSelection: extract,
-                                 onTestSelection: testArchiveOrSelection,
-                                 onAdd: addFiles,
-                                 onRenameSelection: renameSelected,
-                                 onMoveSelection: moveSelected, onCopySelection: copySelected,
-                                 onDeleteSelection: confirmDeleteSelected)
-                    StatusBarView(archive: archive)
-                }
-            }
-        }
-        .frame(minWidth: 640, minHeight: 400)
-        .overlay { dropOverlay }
-        .overlay { CrossArchiveDropTarget(onDrop: handleCrossArchiveDrop) }
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
-        .navigationTitle(viewModel.archiveURL?.lastPathComponent ?? "7ZIP4MAC")
-        .toolbar { toolbarContent }
-        .inspector(isPresented: $showInspector) {
-            InspectorView(entry: singleSelectedEntry)
-        }
-        .sheet(isPresented: extractionSheetPresented) {
-            if case .running(let progress) = viewModel.extractionState {
-                ProgressPanelView(
-                    title: "Extracting \(viewModel.archiveURL?.lastPathComponent ?? "archive")",
-                    progress: progress,
-                    onCancel: viewModel.cancelExtraction
-                )
-            }
-        }
-        .alert("Extraction Complete", isPresented: extractionFinishedPresented, presenting: finishedDestination) { destination in
-            Button("Show in Finder") {
-                NSWorkspace.shared.activateFileViewerSelecting(finishedRevealTargets)
-                viewModel.dismissExtractionResult()
-            }
-            Button("Done", role: .cancel) { viewModel.dismissExtractionResult() }
-        } message: { destination in
-            switch finishedOverwritePolicy {
-            case .overwrite:
-                Text("Files were extracted to “\(destination.lastPathComponent)”.")
-            case .skip:
-                Text("Files were extracted to “\(destination.lastPathComponent)”. Any file that already existed there was left untouched (Skip).")
-            case .rename:
-                Text("Files were extracted to “\(destination.lastPathComponent)”. Any file that already existed there was kept, and the newly extracted one was given a different name (Rename Extracted File).")
-            }
-        }
-        .alert("Couldn’t Extract", isPresented: extractionFailedPresented, presenting: failureMessage) { _ in
-            Button("OK", role: .cancel) { viewModel.dismissExtractionResult() }
-        } message: { message in
-            Text(message)
-        }
+        contentWithExtractionUI
         .modifier(CompressionFlow(
             compression: compression,
             profileStore: profileStore,
@@ -136,6 +74,85 @@ struct ContentView: View {
         }
     }
 
+    /// `mainContent` plus the toolbar, inspector and extraction-related
+    /// sheet/alerts — split out of `body` for the same type-checker reason
+    /// as `mainContent` itself below.
+    private var contentWithExtractionUI: some View {
+        mainContent
+        .toolbar(id: "MainToolbar") { toolbarContent }
+        .onChange(of: selection) { _, _ in refreshQuickLookIfVisible() }
+        .inspector(isPresented: $showInspector) {
+            InspectorView(entry: singleSelectedEntry)
+        }
+        .sheet(isPresented: extractionSheetPresented) {
+            if case .running(let progress) = viewModel.extractionState {
+                ProgressPanelView(
+                    title: "Extracting \(viewModel.archiveURL?.lastPathComponent ?? "archive")",
+                    progress: progress,
+                    onCancel: viewModel.cancelExtraction
+                )
+            }
+        }
+        .alert("Extraction Complete", isPresented: extractionFinishedPresented, presenting: finishedDestination) { destination in
+            Button("Show in Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting(finishedRevealTargets)
+                viewModel.dismissExtractionResult()
+            }
+            Button("Done", role: .cancel) { viewModel.dismissExtractionResult() }
+        } message: { destination in
+            switch finishedOverwritePolicy {
+            case .overwrite:
+                Text("Files were extracted to “\(destination.lastPathComponent)”.")
+            case .skip:
+                Text("Files were extracted to “\(destination.lastPathComponent)”. Any file that already existed there was left untouched (Skip).")
+            case .rename:
+                Text("Files were extracted to “\(destination.lastPathComponent)”. Any file that already existed there was kept, and the newly extracted one was given a different name (Rename Extracted File).")
+            }
+        }
+        .alert("Couldn’t Extract", isPresented: extractionFailedPresented, presenting: failureMessage) { _ in
+            Button("OK", role: .cancel) { viewModel.dismissExtractionResult() }
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    /// The state switch plus its most basic modifiers, split out of `body` —
+    /// combined with the rest of `body`'s modifier chain in one expression,
+    /// the whole thing became too much for the type-checker to solve in
+    /// reasonable time.
+    private var mainContent: some View {
+        Group {
+            switch viewModel.state {
+            case .empty:
+                EmptyStateView(
+                    onOpen: presentOpenPanel,
+                    recents: recents.existing,
+                    onOpenRecent: { url in openRespectingCurrentArchive(url) }
+                )
+            case .loading(let url):
+                LoadingStateView(url: url)
+            case .failed(let message):
+                FailureStateView(message: message, onRetry: presentOpenPanel)
+            case .loaded(let archive):
+                VStack(spacing: 0) {
+                    FileListView(viewModel: viewModel, selection: $selection,
+                                 onQuickLook: performQuickLook, onExtractSelection: extract,
+                                 onTestSelection: testArchiveOrSelection,
+                                 onAdd: addFiles,
+                                 onRenameSelection: renameSelected,
+                                 onMoveSelection: moveSelected, onCopySelection: copySelected,
+                                 onDeleteSelection: confirmDeleteSelected)
+                    StatusBarView(archive: archive)
+                }
+            }
+        }
+        .frame(minWidth: 640, minHeight: 400)
+        .overlay { dropOverlay }
+        .overlay { CrossArchiveDropTarget(onDrop: handleCrossArchiveDrop) }
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
+        .navigationTitle(viewModel.archiveURL?.lastPathComponent ?? "7ZIP4MAC")
+    }
+
     private var testPresented: Binding<Bool> {
         Binding(get: { viewModel.testMessage != nil }, set: { if !$0 { viewModel.dismissTest() } })
     }
@@ -181,9 +198,41 @@ struct ContentView: View {
         )
     }
 
-    /// Extracts the (first) selected entry to a temporary file and shows it in
-    /// Quick Look. Folders are skipped — Quick Look has nothing useful to show.
+    /// Extracts the selected entries to temporary files and shows them in
+    /// Quick Look — or, if the panel is already open for this window, closes
+    /// it instead (Space/⌘Y toggle, matching Finder). Folders are skipped —
+    /// Quick Look has nothing useful to show.
     func performQuickLook() {
+        guard let quickLookController else { return }
+        if quickLookController.isVisible {
+            quickLookController.toggle(urls: [])
+            return
+        }
+        extractSelectionForQuickLook { urls in
+            quickLookController.toggle(urls: urls)
+        }
+    }
+
+    /// While the panel is already open, a plain click on a different row
+    /// never calls `performQuickLook()` — it only changes `selection`. This
+    /// keeps the preview in sync with that selection instead of leaving it
+    /// stale (or, worse, still showing an item the user has since
+    /// deselected).
+    private func refreshQuickLookIfVisible() {
+        guard let quickLookController, quickLookController.isVisible else { return }
+        // Nothing left to preview (selection cleared, or narrowed down to
+        // only folders) — close instead of leaving the last-shown item
+        // stuck on screen forever.
+        guard viewModel.visibleEntries.contains(where: { selection.contains($0.id) && !$0.isDirectory }) else {
+            quickLookController.toggle(urls: [])
+            return
+        }
+        extractSelectionForQuickLook { urls in
+            quickLookController.refresh(urls: urls)
+        }
+    }
+
+    private func extractSelectionForQuickLook(then handle: @escaping ([URL]) -> Void) {
         guard let archiveURL = viewModel.archiveURL else { return }
         let entries = viewModel.visibleEntries.filter { selection.contains($0.id) && !$0.isDirectory }
         guard !entries.isEmpty else { return }
@@ -201,7 +250,7 @@ struct ContentView: View {
                 }
             }
             guard !urls.isEmpty else { return }
-            QuickLookPreviewer.shared.preview(urls: urls)
+            handle(urls)
         }
     }
 
@@ -264,7 +313,7 @@ struct ContentView: View {
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
+    private var toolbarContent: some CustomizableToolbarContent {
         archiveToolbarItems
         editToolbarItems
         windowToolbarItems
@@ -272,21 +321,21 @@ struct ContentView: View {
 
     /// Open/create/extract/test — the core archive-level actions.
     @ToolbarContentBuilder
-    private var archiveToolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+    private var archiveToolbarItems: some CustomizableToolbarContent {
+        ToolbarItem(id: "open", placement: .navigation) {
             Button(action: presentOpenPanel) {
                 Label("Open", systemImage: "folder")
             }
             .help("Open an archive")
         }
-        ToolbarItem(placement: .navigation) {
+        ToolbarItem(id: "new-archive", placement: .navigation) {
             Button(action: startNewArchive) {
                 Label("New Archive", systemImage: "doc.zipper")
             }
             .help("Create a new archive")
             .disabled(compression.isRunning)
         }
-        ToolbarItem {
+        ToolbarItem(id: "extract") {
             Button(action: extract) {
                 Label(selection.isEmpty ? "Extract All" : "Extract Selected",
                       systemImage: "arrow.up.bin")
@@ -294,7 +343,7 @@ struct ContentView: View {
             .help(selection.isEmpty ? "Extract the whole archive" : "Extract the selected items")
             .disabled(viewModel.archive == nil || viewModel.isExtracting)
         }
-        ToolbarItem {
+        ToolbarItem(id: "test") {
             Button(action: testArchiveOrSelection) {
                 Label(selection.isEmpty ? "Test" : "Test Selected", systemImage: "checkmark.seal")
             }
@@ -308,36 +357,36 @@ struct ContentView: View {
     /// they're one click away; the toolbar's own overflow chevron handles it
     /// if the window gets too narrow to show them all.
     @ToolbarContentBuilder
-    private var editToolbarItems: some ToolbarContent {
-        ToolbarItem {
+    private var editToolbarItems: some CustomizableToolbarContent {
+        ToolbarItem(id: "add") {
             Button { addFiles() } label: {
                 Label("Add…", systemImage: "tray.and.arrow.down")
             }
             .help("Add files or folders into the archive")
             .disabled(viewModel.archive == nil)
         }
-        ToolbarItem {
+        ToolbarItem(id: "rename") {
             Button { renameSelected() } label: {
                 Label("Rename…", systemImage: "pencil")
             }
             .help("Rename the selected item")
             .disabled(selection.count != 1)
         }
-        ToolbarItem {
+        ToolbarItem(id: "move") {
             Button { moveSelected() } label: {
                 Label("Move…", systemImage: "arrow.turn.up.right")
             }
             .help("Move the selected item within the archive")
             .disabled(selection.count != 1)
         }
-        ToolbarItem {
+        ToolbarItem(id: "copy") {
             Button { copySelected() } label: {
                 Label("Copy…", systemImage: "doc.on.doc")
             }
             .help("Copy the selected item within the archive")
             .disabled(selection.count != 1)
         }
-        ToolbarItem {
+        ToolbarItem(id: "delete") {
             Button(role: .destructive) { confirmDeleteSelected() } label: {
                 Label(selection.count > 1 ? "Delete Selected" : "Delete", systemImage: "trash")
             }
@@ -348,35 +397,35 @@ struct ContentView: View {
 
     /// Up/Quick Look/Inspector/Close/More — window and navigation controls.
     @ToolbarContentBuilder
-    private var windowToolbarItems: some ToolbarContent {
-        ToolbarItem {
+    private var windowToolbarItems: some CustomizableToolbarContent {
+        ToolbarItem(id: "up") {
             Button(action: viewModel.goUp) {
                 Label("Up", systemImage: "chevron.up")
             }
             .help("Go up one folder")
             .disabled(viewModel.currentFolder.isEmpty)
         }
-        ToolbarItem {
+        ToolbarItem(id: "quicklook") {
             Button(action: performQuickLook) {
                 Label("Quick Look", systemImage: "eye")
             }
             .help("Preview the selected item (Space)")
             .disabled(!canQuickLook)
         }
-        ToolbarItem {
+        ToolbarItem(id: "inspector") {
             Button { showInspector.toggle() } label: {
                 Label("Inspector", systemImage: "sidebar.right")
             }
             .help("Toggle inspector")
         }
-        ToolbarItem {
+        ToolbarItem(id: "close") {
             Button(action: viewModel.close) {
                 Label("Close", systemImage: "xmark.circle")
             }
             .help("Close the current archive")
             .disabled(viewModel.archive == nil)
         }
-        ToolbarItem {
+        ToolbarItem(id: "more") {
             Menu {
                 Button("Uninstall 7ZIP4MAC…", role: .destructive) {
                     Uninstaller.confirmAndUninstall(settings: settings)
