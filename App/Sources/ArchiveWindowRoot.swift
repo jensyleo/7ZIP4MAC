@@ -15,6 +15,11 @@ struct ArchiveWindowRoot: View {
     @State private var viewModel = ArchiveViewModel()
     @State private var compression = CompressionViewModel()
     @State private var hostWindow: NSWindow?
+    // Wires this window into the shared QLPreviewPanel; created once the
+    // window resolves and held here for the window's whole lifetime (its
+    // link into the responder chain isn't a retaining one — see
+    // `QuickLookPanelController.init`).
+    @State private var quickLookController: QuickLookPanelController?
     // Set while this window is provisionally hidden pending the orphan check
     // below — cleared (and the window revealed) the moment it turns out to
     // be receiving real content after all.
@@ -29,11 +34,15 @@ struct ArchiveWindowRoot: View {
 
     var body: some View {
         ContentView(viewModel: viewModel, compression: compression,
-                    settings: settings, profileStore: profileStore, recents: recents)
+                    settings: settings, profileStore: profileStore, recents: recents,
+                    quickLookController: quickLookController)
             .focusedValue(\.archiveViewModel, viewModel)
             .focusedValue(\.compressionViewModel, compression)
             .background(WindowAccessor { window in
                 hostWindow = window
+                if quickLookController == nil {
+                    quickLookController = QuickLookPanelController(window: window)
+                }
                 if let urlToRegister = pendingRegistrationURL {
                     OpenArchiveWindowRegistry.register(urlToRegister, window: window, viewModel: viewModel)
                     pendingRegistrationURL = nil
