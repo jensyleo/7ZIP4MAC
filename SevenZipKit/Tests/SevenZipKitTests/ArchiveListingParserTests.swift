@@ -88,4 +88,26 @@ struct ArchiveListingParserTests {
             try ArchiveListingParser.parse(garbage)
         }
     }
+
+    @Test("strips GNU tar's './' path prefix and drops the bare '.' root entry")
+    func normalizesGNUTarDotSlashPrefix() throws {
+        let listing = """
+        --
+        Path = /tmp/backup.tar
+        Type = tar
+
+        ----------
+        Path = .
+        Folder = +
+
+        Path = ./asd
+        Folder = +
+
+        Path = ./asd/file.txt
+        Size = 12
+
+        """
+        let (_, entries) = try ArchiveListingParser.parse(listing)
+        #expect(entries.map(\.path) == ["asd", "asd/file.txt"])
+    }
 }

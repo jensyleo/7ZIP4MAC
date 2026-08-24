@@ -65,12 +65,16 @@ public enum ArchiveListingParser {
         var current: [String: String] = [:]
 
         func flush() {
-            guard let path = current["Path"], !path.isEmpty else {
-                current.removeAll(keepingCapacity: true)
-                return
-            }
+            defer { current.removeAll(keepingCapacity: true) }
+            guard var path = current["Path"], !path.isEmpty else { return }
+            // GNU tar prefixes every path with "./" (and lists the archive's
+            // own root as bare "."). Left as-is, the "." becomes the first
+            // path component everywhere, which the hidden-name filter above
+            // (anything starting with ".") then hides — wiping out the
+            // entire top level of the archive in the file list.
+            if path.hasPrefix("./") { path = String(path.dropFirst(2)) }
+            guard path != ".", !path.isEmpty else { return }
             entries.append(makeEntry(path: path, fields: current))
-            current.removeAll(keepingCapacity: true)
         }
 
         for line in lines {
