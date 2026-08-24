@@ -79,7 +79,7 @@ struct ContentView: View {
     /// as `mainContent` itself below.
     private var contentWithExtractionUI: some View {
         mainContent
-        .toolbar(id: "MainToolbar") { toolbarContent }
+        .toolbar { toolbarContent }
         .onChange(of: selection) { _, _ in refreshQuickLookIfVisible() }
         .inspector(isPresented: $showInspector) {
             InspectorView(entry: singleSelectedEntry)
@@ -313,7 +313,7 @@ struct ContentView: View {
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
-    private var toolbarContent: some CustomizableToolbarContent {
+    private var toolbarContent: some ToolbarContent {
         archiveToolbarItems
         editToolbarItems
         windowToolbarItems
@@ -321,21 +321,21 @@ struct ContentView: View {
 
     /// Open/create/extract/test — the core archive-level actions.
     @ToolbarContentBuilder
-    private var archiveToolbarItems: some CustomizableToolbarContent {
-        ToolbarItem(id: "open", placement: .navigation) {
+    private var archiveToolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
             Button(action: presentOpenPanel) {
                 Label("Open", systemImage: "folder")
             }
             .help("Open an archive")
         }
-        ToolbarItem(id: "new-archive", placement: .navigation) {
+        ToolbarItem(placement: .navigation) {
             Button(action: startNewArchive) {
                 Label("New Archive", systemImage: "doc.zipper")
             }
             .help("Create a new archive")
             .disabled(compression.isRunning)
         }
-        ToolbarItem(id: "extract") {
+        ToolbarItem {
             Button(action: extract) {
                 Label(selection.isEmpty ? "Extract All" : "Extract Selected",
                       systemImage: "arrow.up.bin")
@@ -343,7 +343,7 @@ struct ContentView: View {
             .help(selection.isEmpty ? "Extract the whole archive" : "Extract the selected items")
             .disabled(viewModel.archive == nil || viewModel.isExtracting)
         }
-        ToolbarItem(id: "test") {
+        ToolbarItem {
             Button(action: testArchiveOrSelection) {
                 Label(selection.isEmpty ? "Test" : "Test Selected", systemImage: "checkmark.seal")
             }
@@ -357,36 +357,36 @@ struct ContentView: View {
     /// they're one click away; the toolbar's own overflow chevron handles it
     /// if the window gets too narrow to show them all.
     @ToolbarContentBuilder
-    private var editToolbarItems: some CustomizableToolbarContent {
-        ToolbarItem(id: "add") {
+    private var editToolbarItems: some ToolbarContent {
+        ToolbarItem {
             Button { addFiles() } label: {
                 Label("Add…", systemImage: "tray.and.arrow.down")
             }
             .help("Add files or folders into the archive")
             .disabled(viewModel.archive == nil)
         }
-        ToolbarItem(id: "rename") {
+        ToolbarItem {
             Button { renameSelected() } label: {
                 Label("Rename…", systemImage: "pencil")
             }
             .help("Rename the selected item")
             .disabled(selection.count != 1)
         }
-        ToolbarItem(id: "move") {
+        ToolbarItem {
             Button { moveSelected() } label: {
                 Label("Move…", systemImage: "arrow.turn.up.right")
             }
             .help("Move the selected item within the archive")
             .disabled(selection.count != 1)
         }
-        ToolbarItem(id: "copy") {
+        ToolbarItem {
             Button { copySelected() } label: {
                 Label("Copy…", systemImage: "doc.on.doc")
             }
             .help("Copy the selected item within the archive")
             .disabled(selection.count != 1)
         }
-        ToolbarItem(id: "delete") {
+        ToolbarItem {
             Button(role: .destructive) { confirmDeleteSelected() } label: {
                 Label(selection.count > 1 ? "Delete Selected" : "Delete", systemImage: "trash")
             }
@@ -397,35 +397,35 @@ struct ContentView: View {
 
     /// Up/Quick Look/Inspector/Close/More — window and navigation controls.
     @ToolbarContentBuilder
-    private var windowToolbarItems: some CustomizableToolbarContent {
-        ToolbarItem(id: "up") {
+    private var windowToolbarItems: some ToolbarContent {
+        ToolbarItem {
             Button(action: viewModel.goUp) {
                 Label("Up", systemImage: "chevron.up")
             }
             .help("Go up one folder")
             .disabled(viewModel.currentFolder.isEmpty)
         }
-        ToolbarItem(id: "quicklook") {
+        ToolbarItem {
             Button(action: performQuickLook) {
                 Label("Quick Look", systemImage: "eye")
             }
             .help("Preview the selected item (Space)")
             .disabled(!canQuickLook)
         }
-        ToolbarItem(id: "inspector") {
+        ToolbarItem {
             Button { showInspector.toggle() } label: {
                 Label("Inspector", systemImage: "sidebar.right")
             }
             .help("Toggle inspector")
         }
-        ToolbarItem(id: "close") {
+        ToolbarItem {
             Button(action: viewModel.close) {
                 Label("Close", systemImage: "xmark.circle")
             }
             .help("Close the current archive")
             .disabled(viewModel.archive == nil)
         }
-        ToolbarItem(id: "more") {
+        ToolbarItem {
             Menu {
                 Button("Uninstall 7ZIP4MAC…", role: .destructive) {
                     Uninstaller.confirmAndUninstall(settings: settings)
