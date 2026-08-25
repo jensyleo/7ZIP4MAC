@@ -4,7 +4,7 @@ A native macOS graphical interface for [7-Zip](https://www.7-zip.org/), built to
 feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drives
 the official, unmodified `7zz` engine, which is bundled inside the application.
 
-> Status: **v1.4.0**
+> Status: **v1.6.2**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -84,6 +84,10 @@ If you compile 7ZIP4MAC yourself and want to enable Quick Look for `.7z`, `.zip`
 3. **Rebuild**: run `Scripts/build.sh` again. The Quick Look extension will now be bundled and signed with your identity.
 
 The extension will work on your own Mac. If you want to distribute a build with Quick Look to others, you will need a [paid Apple Developer Program membership](https://developer.apple.com/programs/) ($99/year) to obtain a Developer ID certificate for notarization.
+
+## Known Limitations
+
+**Toolbar customization:** macOS 26.6.2 contains an AppKit bug in `NSToolbar._insertNewItemWithItemIdentifier` that causes crashes when multiple windows share the same toolbar identifier and attempt to restore a customized toolbar layout. Due to this system-level limitation, toolbar customization (right-click toolbar to customize) will not be implemented. You can still extract, compress, and manage archives using the fixed toolbar buttons; custom layouts and persistence are not available.
 
 ## Roadmap
 
