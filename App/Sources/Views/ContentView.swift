@@ -20,6 +20,7 @@ struct ContentView: View {
     @AppStorage("showInspector") private var showInspector = false
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @State private var toolbarController = SevenZip4MACToolbarController()
 
     var body: some View {
         contentWithExtractionUI
@@ -79,7 +80,7 @@ struct ContentView: View {
     /// as `mainContent` itself below.
     private var contentWithExtractionUI: some View {
         mainContent
-        .toolbar { toolbarContent }
+        .background(ToolbarHost(actions: toolbarActions, controller: toolbarController))
         .onChange(of: selection) { _, _ in refreshQuickLookIfVisible() }
         .inspector(isPresented: $showInspector) {
             InspectorView(entry: singleSelectedEntry)
@@ -311,130 +312,116 @@ struct ContentView: View {
     }
 
     // MARK: - Toolbar
+    //
+    // A hand-built `NSToolbar`, bridged in via `ToolbarHost` (see
+    // SevenZip4MACToolbar.swift) instead of SwiftUI's own `.toolbar(id:)` —
+    // that API crashes on macOS 26.6.2 the moment a second window opens,
+    // because `CustomizableToolbarContent`'s saved layout restoration isn't
+    // safe across multiple windows sharing one `toolbar(id:)`. Each action
+    // below still declares its own enabled state and title exactly like the
+    // old `ToolbarItem`s did; `ToolbarHost` re-syncs the real toolbar to
+    // this list on every render without disturbing a user's manual reorder.
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        archiveToolbarItems
-        editToolbarItems
-        windowToolbarItems
+    private var toolbarActions: [ToolbarAction] {
+        archiveToolbarActions + editToolbarActions + windowToolbarActions
     }
 
     /// Open/create/extract/test — the core archive-level actions.
-    @ToolbarContentBuilder
-    private var archiveToolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button(action: presentOpenPanel) {
-                Label("Open", systemImage: "folder")
-            }
-            .help("Open an archive")
-        }
-        ToolbarItem(placement: .navigation) {
-            Button(action: startNewArchive) {
-                Label("New Archive", systemImage: "doc.zipper")
-            }
-            .help("Create a new archive")
-            .disabled(compression.isRunning)
-        }
-        ToolbarItem {
-            Button(action: extract) {
-                Label(selection.isEmpty ? "Extract All" : "Extract Selected",
-                      systemImage: "arrow.up.bin")
-            }
-            .help(selection.isEmpty ? "Extract the whole archive" : "Extract the selected items")
-            .disabled(viewModel.archive == nil || viewModel.isExtracting)
-        }
-        ToolbarItem {
-            Button(action: testArchiveOrSelection) {
-                Label(selection.isEmpty ? "Test" : "Test Selected", systemImage: "checkmark.seal")
-            }
-            .help(selection.isEmpty ? "Test the whole archive's integrity" : "Test the selected items' integrity")
-            .disabled(viewModel.archive == nil)
-        }
+    private var archiveToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "open", title: "Open", systemImage: "folder",
+                help: "Open an archive", kind: .button(presentOpenPanel)
+            ),
+            ToolbarAction(
+                id: "newArchive", title: "New Archive", systemImage: "doc.zipper",
+                isEnabled: !compression.isRunning,
+                help: "Create a new archive", kind: .button(startNewArchive)
+            ),
+            ToolbarAction(
+                id: "extract", title: selection.isEmpty ? "Extract All" : "Extract Selected",
+                systemImage: "arrow.up.bin",
+                isEnabled: viewModel.archive != nil && !viewModel.isExtracting,
+                help: selection.isEmpty ? "Extract the whole archive" : "Extract the selected items",
+                kind: .button(extract)
+            ),
+            ToolbarAction(
+                id: "test", title: selection.isEmpty ? "Test" : "Test Selected",
+                systemImage: "checkmark.seal",
+                isEnabled: viewModel.archive != nil,
+                help: selection.isEmpty ? "Test the whole archive's integrity" : "Test the selected items' integrity",
+                kind: .button(testArchiveOrSelection)
+            ),
+        ]
     }
 
     /// Add/Rename/Move/Copy/Delete — in-place edits on entries, each its own
     /// direct toolbar button (no longer tucked into an "Edit" dropdown) so
     /// they're one click away; the toolbar's own overflow chevron handles it
     /// if the window gets too narrow to show them all.
-    @ToolbarContentBuilder
-    private var editToolbarItems: some ToolbarContent {
-        ToolbarItem {
-            Button { addFiles() } label: {
-                Label("Add…", systemImage: "tray.and.arrow.down")
-            }
-            .help("Add files or folders into the archive")
-            .disabled(viewModel.archive == nil)
-        }
-        ToolbarItem {
-            Button { renameSelected() } label: {
-                Label("Rename…", systemImage: "pencil")
-            }
-            .help("Rename the selected item")
-            .disabled(selection.count != 1)
-        }
-        ToolbarItem {
-            Button { moveSelected() } label: {
-                Label("Move…", systemImage: "arrow.turn.up.right")
-            }
-            .help("Move the selected item within the archive")
-            .disabled(selection.count != 1)
-        }
-        ToolbarItem {
-            Button { copySelected() } label: {
-                Label("Copy…", systemImage: "doc.on.doc")
-            }
-            .help("Copy the selected item within the archive")
-            .disabled(selection.count != 1)
-        }
-        ToolbarItem {
-            Button(role: .destructive) { confirmDeleteSelected() } label: {
-                Label(selection.count > 1 ? "Delete Selected" : "Delete", systemImage: "trash")
-            }
-            .help("Delete the selected item(s) from the archive")
-            .disabled(selection.isEmpty)
-        }
+    private var editToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "add", title: "Add…", systemImage: "tray.and.arrow.down",
+                isEnabled: viewModel.archive != nil,
+                help: "Add files or folders into the archive", kind: .button(addFiles)
+            ),
+            ToolbarAction(
+                id: "rename", title: "Rename…", systemImage: "pencil",
+                isEnabled: selection.count == 1,
+                help: "Rename the selected item", kind: .button(renameSelected)
+            ),
+            ToolbarAction(
+                id: "move", title: "Move…", systemImage: "arrow.turn.up.right",
+                isEnabled: selection.count == 1,
+                help: "Move the selected item within the archive", kind: .button(moveSelected)
+            ),
+            ToolbarAction(
+                id: "copy", title: "Copy…", systemImage: "doc.on.doc",
+                isEnabled: selection.count == 1,
+                help: "Copy the selected item within the archive", kind: .button(copySelected)
+            ),
+            ToolbarAction(
+                id: "delete", title: selection.count > 1 ? "Delete Selected" : "Delete",
+                systemImage: "trash", isEnabled: !selection.isEmpty, isDestructive: true,
+                help: "Delete the selected item(s) from the archive", kind: .button(confirmDeleteSelected)
+            ),
+        ]
     }
 
     /// Up/Quick Look/Inspector/Close/More — window and navigation controls.
-    @ToolbarContentBuilder
-    private var windowToolbarItems: some ToolbarContent {
-        ToolbarItem {
-            Button(action: viewModel.goUp) {
-                Label("Up", systemImage: "chevron.up")
-            }
-            .help("Go up one folder")
-            .disabled(viewModel.currentFolder.isEmpty)
-        }
-        ToolbarItem {
-            Button(action: performQuickLook) {
-                Label("Quick Look", systemImage: "eye")
-            }
-            .help("Preview the selected item (Space)")
-            .disabled(!canQuickLook)
-        }
-        ToolbarItem {
-            Button { showInspector.toggle() } label: {
-                Label("Inspector", systemImage: "sidebar.right")
-            }
-            .help("Toggle inspector")
-        }
-        ToolbarItem {
-            Button(action: viewModel.close) {
-                Label("Close", systemImage: "xmark.circle")
-            }
-            .help("Close the current archive")
-            .disabled(viewModel.archive == nil)
-        }
-        ToolbarItem {
-            Menu {
-                Button("Uninstall 7ZIP4MAC…", role: .destructive) {
-                    Uninstaller.confirmAndUninstall(settings: settings)
+    private var windowToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "up", title: "Up", systemImage: "chevron.up",
+                isEnabled: !viewModel.currentFolder.isEmpty,
+                help: "Go up one folder", kind: .button(viewModel.goUp)
+            ),
+            ToolbarAction(
+                id: "quickLook", title: "Quick Look", systemImage: "eye",
+                isEnabled: canQuickLook,
+                help: "Preview the selected item (Space)", kind: .button(performQuickLook)
+            ),
+            ToolbarAction(
+                id: "inspector", title: "Inspector", systemImage: "sidebar.right",
+                help: "Toggle inspector", kind: .button { showInspector.toggle() }
+            ),
+            ToolbarAction(
+                id: "close", title: "Close", systemImage: "xmark.circle",
+                isEnabled: viewModel.archive != nil,
+                help: "Close the current archive", kind: .button(viewModel.close)
+            ),
+            ToolbarAction(
+                id: "more", title: "More", systemImage: "ellipsis.circle",
+                help: "More actions", kind: .menu { [settings] in
+                    let menu = NSMenu()
+                    menu.addItem(ClosureMenuItem(title: "Uninstall 7ZIP4MAC…") {
+                        Uninstaller.confirmAndUninstall(settings: settings)
+                    })
+                    return menu
                 }
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
-            }
-            .help("More actions")
-        }
+            ),
+        ]
     }
 
     // MARK: - Drag & drop feedback
