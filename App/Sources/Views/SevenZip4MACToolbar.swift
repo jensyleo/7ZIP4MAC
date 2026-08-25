@@ -25,9 +25,8 @@ final class ClosureMenuItem: NSMenuItem {
 /// restoring `CustomizableToolbarContent`'s saved layout when multiple
 /// windows share the same `toolbar(id:)` (reproduced deterministically —
 /// launch the app, then `open` a second file from the Finder/CLI while it's
-/// running). Bridging to a real, hand-built `NSToolbar` per window — same
-/// approach as TCPV4MAC's `TCPV4MACToolbarController` — sidesteps this
-/// entirely: each window's `NSToolbar` is its own AppKit object, never
+/// running). Bridging to a real, hand-built `NSToolbar` per window sidesteps
+/// this entirely: each window's `NSToolbar` is its own AppKit object, never
 /// reconciled by SwiftUI's cross-window `.toolbar(id:)` machinery.
 struct ToolbarAction: Identifiable {
     enum Kind {
@@ -56,11 +55,21 @@ final class SevenZip4MACToolbarController: NSObject, NSToolbarDelegate {
     private var actionsByID: [String: ToolbarAction] = [:]
     private var orderedIDs: [String] = []
     private weak var toolbar: NSToolbar?
+    private static let symbolCache = NSCache<NSString, NSImage>()
 
     private func loadSavedOrder() -> [String]? {
         UserDefaults.standard.array(forKey: Self.orderDefaultsKey) as? [String]
     }
 
+    /// Persists this toolbar's current item order — called only in response
+    /// to `NSToolbar`'s own add/remove notifications (wired up in
+    /// `install(on:actions:)`), which fire exclusively when the user actually
+    /// drags/removes an item via the customization sheet or its shortcuts.
+    /// `setActions` refreshing dynamic item state (title/enabled/image) on
+    /// every render never touches this — with more than one window open,
+    /// saving unconditionally on every render would let a window nobody has
+    /// touched since launch stomp another window's just-completed manual
+    /// reorder with its own untouched, merely-stale copy of the order.
     private func saveCurrentOrder(_ toolbar: NSToolbar) {
         let ids = toolbar.items.map(\.itemIdentifier.rawValue).filter { actionsByID[$0] != nil }
         UserDefaults.standard.set(ids, forKey: Self.orderDefaultsKey)
@@ -98,6 +107,20 @@ final class SevenZip4MACToolbarController: NSObject, NSToolbarDelegate {
         self.toolbar = toolbar
     }
 
+    /// Fires only when the user actually drags a new item onto the toolbar
+    /// (from the customization sheet) or reorders existing ones — never from
+    /// `setActions`'s per-render property refresh. See `saveCurrentOrder`'s
+    /// doc comment for why that distinction matters with multiple windows.
+    func toolbarWillAddItem(_ notification: Notification) {
+        guard let toolbar else { return }
+        saveCurrentOrder(toolbar)
+    }
+
+    func toolbarDidRemoveItem(_ notification: Notification) {
+        guard let toolbar else { return }
+        saveCurrentOrder(toolbar)
+    }
+
     /// Declares (or replaces) the full current action list. Existing items
     /// already on the real toolbar only ever have their dynamic state
     /// (enabled/help/title/image) refreshed in place — order and visibility
@@ -123,14 +146,27 @@ final class SevenZip4MACToolbarController: NSObject, NSToolbarDelegate {
                 item.image = symbolImage(systemImage, isDestructive: spec.isDestructive)
             }
         }
-        saveCurrentOrder(toolbar)
     }
 
+    /// System symbol images never change per-window, so they're cached by
+    /// (name, isDestructive) instead of rebuilt on every `setActions` call —
+    /// which otherwise fires on every render (a selection change, a folder
+    /// navigation, an extraction progress tick), re-allocating an
+    /// `NSImage`/`SymbolConfiguration` pair for all ~14 toolbar items each
+    /// time even though at most one or two actually changed.
     private func symbolImage(_ name: String, isDestructive: Bool) -> NSImage? {
+        let key = "\(name)|\(isDestructive)" as NSString
+        if let cached = Self.symbolCache.object(forKey: key) { return cached }
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
-        guard isDestructive else { return image }
-        let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
-        return image.withSymbolConfiguration(config)
+        let result: NSImage
+        if isDestructive {
+            let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
+            result = image.withSymbolConfiguration(config) ?? image
+        } else {
+            result = image
+        }
+        Self.symbolCache.setObject(result, forKey: key)
+        return result
     }
 
     /// Only sets, never `Set<String>` iteration order, decide the actual
