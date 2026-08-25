@@ -5,6 +5,7 @@ import SevenZipKit
 /// or cancels the run.
 struct BenchmarkView: View {
     @Bindable var viewModel: BenchmarkViewModel
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -103,6 +104,9 @@ struct BenchmarkView: View {
                 Button(viewModel.result == nil ? "Run Benchmark" : "Run Again") { viewModel.run() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
+                if viewModel.result != nil {
+                    Button("Close") { dismissWindow(id: "benchmark") }
+                }
             }
         }
         .padding(16)

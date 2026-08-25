@@ -4,7 +4,7 @@ A native macOS graphical interface for [7-Zip](https://www.7-zip.org/), built to
 feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drives
 the official, unmodified `7zz` engine, which is bundled inside the application.
 
-> Status: **v1.7.1**
+> Status: **v1.7.2**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
