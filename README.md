@@ -4,7 +4,7 @@ A native macOS graphical interface for [7-Zip](https://www.7-zip.org/), built to
 feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drives
 the official, unmodified `7zz` engine, which is bundled inside the application.
 
-> Status: **v1.6.2**
+> Status: **v1.7.0**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -85,9 +85,14 @@ If you compile 7ZIP4MAC yourself and want to enable Quick Look for `.7z`, `.zip`
 
 The extension will work on your own Mac. If you want to distribute a build with Quick Look to others, you will need a [paid Apple Developer Program membership](https://developer.apple.com/programs/) ($99/year) to obtain a Developer ID certificate for notarization.
 
-## Known Limitations
+## Toolbar customization
 
-**Toolbar customization:** macOS 26.6.2 contains an AppKit bug in `NSToolbar._insertNewItemWithItemIdentifier` that causes crashes when multiple windows share the same toolbar identifier and attempt to restore a customized toolbar layout. Due to this system-level limitation, toolbar customization (right-click toolbar to customize) will not be implemented. You can still extract, compress, and manage archives using the fixed toolbar buttons; custom layouts and persistence are not available.
+Right-click (or ⌘-drag) the toolbar to reorder items or show/hide them —
+your layout is remembered across launches. This is implemented with a
+hand-built `NSToolbar` bridged into the SwiftUI view, not SwiftUI's own
+`.toolbar(id:)` API: that API restores a saved layout in a way that isn't
+safe when more than one window shares the same toolbar identifier on macOS
+26.6.2, and crashes the moment a second window opens.
 
 ## Roadmap
 

@@ -73,6 +73,7 @@
 		BB940737D919B229C4E4AAD5 /* ArchiveOpenPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CED0F4CDF346FBEFAF6AEB0 /* ArchiveOpenPanel.swift */; };
 		BE59663C947B96C3D5703FB9 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3CE17201B08684842319F64 /* StatusBarView.swift */; };
 		BEFBDB4CCA2FC0678925836E /* FileAssociationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E01E9EBBBE38370F1EDE334 /* FileAssociationService.swift */; };
+		C221F423663A909BEF6C37B1 /* SevenZip4MACToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E8B6AAE51AE9E7B0167A92 /* SevenZip4MACToolbar.swift */; };
 		CC5D275D670377B222679264 /* xip.icns in Resources */ = {isa = PBXBuildFile; fileRef = AF2269F473D98CF629067D88 /* xip.icns */; };
 		CFE53BF529EDEF46BB2B6E84 /* iso.icns in Resources */ = {isa = PBXBuildFile; fileRef = D9D1C99976B605416CC3F33A /* iso.icns */; };
 		D2FD65ECAC98F031827BB620 /* CompressionOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE93817FFC5CAC3D517CD570 /* CompressionOptionsView.swift */; };
@@ -133,6 +134,7 @@
 		8AE541D389A4A9FB280F2BE5 /* PasswordPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordPromptView.swift; sourceTree = "<group>"; };
 		8CED0F4CDF346FBEFAF6AEB0 /* ArchiveOpenPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveOpenPanel.swift; sourceTree = "<group>"; };
 		900F4AAA6C2878D0082B3773 /* CompressionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompressionViewModel.swift; sourceTree = "<group>"; };
+		90E8B6AAE51AE9E7B0167A92 /* SevenZip4MACToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SevenZip4MACToolbar.swift; sourceTree = "<group>"; };
 		96FEADF1A572FAB4EAA70DD7 /* gz.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = gz.icns; sourceTree = "<group>"; };
 		9723DD1A0D6831A166C3CB26 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		972813932823A7AA82D4182D /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 				81C68413475D9D25BA76A319 /* ProgressPanelView.swift */,
 				255F3D93BBEFD8490F558E89 /* QuickLookPreviewer.swift */,
 				9723DD1A0D6831A166C3CB26 /* SettingsView.swift */,
+				90E8B6AAE51AE9E7B0167A92 /* SevenZip4MACToolbar.swift */,
 				E3CE17201B08684842319F64 /* StatusBarView.swift */,
 			);
 			path = Views;
@@ -517,6 +520,7 @@
 				DD3D424D9CED4E93E5724347 /* RecentsStore.swift in Sources */,
 				AC6588D5ED1B7723D72A9127 /* ScriptCommands.swift in Sources */,
 				5A26220A48169DCE1D595EA9 /* SettingsView.swift in Sources */,
+				C221F423663A909BEF6C37B1 /* SevenZip4MACToolbar.swift in Sources */,
 				356CC5FAB4DB8040AA46AB1B /* SevenZip4MacApp.swift in Sources */,
 				305685237A3C663BC0AB31D6 /* SingleInstance.swift in Sources */,
 				BE59663C947B96C3D5703FB9 /* StatusBarView.swift in Sources */,
@@ -602,7 +606,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.6.2;
+				MARKETING_VERSION = 1.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
@@ -692,7 +696,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.6.2;
+				MARKETING_VERSION = 1.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
