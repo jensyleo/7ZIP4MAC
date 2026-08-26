@@ -69,8 +69,9 @@ enum DragOut {
 
     /// Deletes staging folders left over from previous drags. Call once at app
     /// startup — Finder never signals completion, so we sweep anything older
-    /// than `age` instead.
-    static func sweepStaleStaging(olderThan age: TimeInterval = 3600) {
+    /// than `age` instead. Use 24 hours (not 1 hour) to avoid race conditions
+    /// where a drag is still in progress when the app restarts.
+    static func sweepStaleStaging(olderThan age: TimeInterval = 86400) {
         let fm = FileManager.default
         guard let items = try? fm.contentsOfDirectory(
             at: stagingRoot,
