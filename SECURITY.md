@@ -46,6 +46,14 @@ The app persists only:
 
 Passwords for encrypted archives are kept in memory only, never written to disk.
 
+### Code Signing and Sandboxing
+
+The app is ad-hoc signed for development builds. Production releases require a Developer ID certificate (not using App Sandbox):
+
+- **No sandbox**: The app needs unrestricted filesystem access (read arbitrary archives, write to user-chosen destinations).
+- **Process spawning**: Must execute the bundled 7-Zip engine without sandbox restrictions.
+- **Trust model**: Sandbox would not add security in this threat model (assumes local-user trust).
+
 ## Security Review (v1.7.0–v1.7.2)
 
 Formal security review covered:
@@ -57,10 +65,48 @@ Formal security review covered:
 
 **Result**: No high-confidence, exploitable vulnerabilities identified.
 
+## Reporting Security Issues
+
+If you discover a security vulnerability, please report it responsibly:
+
+1. **Do not open a public GitHub issue** — this notifies potential attackers before a fix is available.
+2. **Email the developer** at jmcruz@erco.energy with:
+   - Description of the vulnerability
+   - Steps to reproduce (if applicable)
+   - Affected version(s)
+   - Your contact information (optional)
+
+3. **Timeline**:
+   - Acknowledgment within 48 hours
+   - Investigation and fix development
+   - Coordinated disclosure when a fix is ready
+
+## Scope and Limitations
+
+### What is Protected
+
+- Command injection via archive paths or filenames
+- Shell metacharacter injection in subprocess arguments
+- Data leakage to UserDefaults or system logs
+- Session passwords persisting to disk
+
+### What is NOT Protected
+
+- **Malicious 7-Zip engine**: The bundled `7zz` binary runs with full user privileges; a compromised version could extract files anywhere or execute code. Users must trust the binary source (official Igor Pavlov releases).
+- **Malicious archives**: An archive designed to exploit 7-Zip bugs (e.g., symlink bombs, deeply nested paths) could cause problems. The app does not defend against 7-Zip engine vulnerabilities.
+- **Concurrent file access**: If multiple processes write to the same extraction destination simultaneously, file corruption could occur.
+- **Privilege escalation**: The app does not run privileged code; no elevation is requested or used.
+
+### Out of Scope
+
+- Network security (the app has no network component)
+- Cryptographic security of 7-Zip (delegated to the engine)
+- DoS resistance (the app does not handle untrusted network input)
+
 ## Dependencies
 
-- **7-Zip engine**: Official, unmodified `7zz` binary (GNU LGPL, Igor Pavlov)
-- **Foundation, AppKit, SwiftUI**: Apple frameworks
+- **7-Zip engine**: Official, unmodified `7zz` binary (GNU LGPL, Igor Pavlov). Security updates are manual; the bundled version does not auto-update.
+- **Foundation, AppKit, SwiftUI**: Apple frameworks (macOS updates apply security patches)
 - **SevenZipKit**: Internal Swift package for parsing 7-Zip output
 
 ## Best Practices for Users
