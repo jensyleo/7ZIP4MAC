@@ -74,6 +74,7 @@ public enum ArchiveListingParser {
             // entire top level of the archive in the file list.
             if path.hasPrefix("./") { path = String(path.dropFirst(2)) }
             guard path != ".", !path.isEmpty else { return }
+            guard !path.contains("\0") else { return }
             entries.append(makeEntry(path: path, fields: current))
         }
 
