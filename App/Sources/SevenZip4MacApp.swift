@@ -48,7 +48,7 @@ struct SevenZip4MacApp: App {
                 Button("About 7ZIP4MAC") { showAboutPanel() }
             }
             CommandGroup(replacing: .help) {
-                Button("7ZIP4MAC Help") { showHelp() }
+                HelpMenuButton()
             }
             CommandMenu("Tools") {
                 Button("Benchmark…") { openWindow(id: "benchmark") }
@@ -113,6 +113,10 @@ struct SevenZip4MacApp: App {
             BenchmarkView(viewModel: benchmark)
         }
         .windowResizability(.contentMinSize)
+
+        Window("7ZIP4MAC Help", id: "help") {
+            HelpView()
+        }
     }
 
     /// Loads `url` into the focused window if it's empty; otherwise opens (or
@@ -128,28 +132,11 @@ struct SevenZip4MacApp: App {
     }
 }
 
-/// Concise help shown from the Help menu.
-@MainActor
-func showHelp() {
-    let alert = NSAlert()
-    alert.messageText = "How 7ZIP4MAC works"
-    alert.informativeText = """
-    7ZIP4MAC is a native interface for the official 7-Zip engine, bundled unmodified inside the app.
-
-    • Open (⌘O) or drop an archive to browse its contents; double-click a folder to enter it.
-    • New Archive (⌘N) creates a 7z / ZIP / TAR archive — pick a profile or your own \
-    format, compression level and password.
-    • Extract All (⌘E) extracts everything; select items first to extract only those.
-    • Drag any entry straight to Finder to extract just that item there.
-    • Select an item and press Space for a Quick Look preview.
-    • Test verifies an archive's integrity without extracting it.
-    • Encrypted archives prompt for a password when opened.
-    • Tools ▸ Benchmark measures this Mac's compression speed.
-
-    This app performs no compression itself — all archive operations run through the \
-    official 7-Zip engine (see About for its license).
-    """
-    alert.runModal()
+private struct HelpMenuButton: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button("7ZIP4MAC Help") { openWindow(id: "help") }
+    }
 }
 
 /// Standard About panel with 7-Zip engine credits.

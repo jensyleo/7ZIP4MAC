@@ -34,6 +34,7 @@
 		489F5D94735455FF5FFCBBCE /* vhdx.icns in Resources */ = {isa = PBXBuildFile; fileRef = F36D1DC4C141146CC108F875 /* vhdx.icns */; };
 		4C73768B4AF5DFBCCA906F1E /* ArchiveIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CCC9623B2FD60A8C4BFE1AE /* ArchiveIntents.swift */; };
 		4E20905205DCC214846FA06A /* cpio.icns in Resources */ = {isa = PBXBuildFile; fileRef = 6B1C6F8B683CDF7CB67D4FEB /* cpio.icns */; };
+		4EEC91A277793CA322E5B0DE /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24A26DA9E894F9B8E0EF6B8 /* HelpView.swift */; };
 		5019AA74E44F1B1583212694 /* FocusedValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8621208188F43C320BDDB0B9 /* FocusedValues.swift */; };
 		5771799712BA1203A9FE7086 /* pkg.icns in Resources */ = {isa = PBXBuildFile; fileRef = C7F37C6B237CD849A5938A04 /* pkg.icns */; };
 		57E08C14CB70E1F3B7A478B5 /* zip.icns in Resources */ = {isa = PBXBuildFile; fileRef = F8F63E7310951B48A417E450 /* zip.icns */; };
@@ -84,6 +85,7 @@
 		E4FE5987FA695ADFD32FA769 /* nsis.icns in Resources */ = {isa = PBXBuildFile; fileRef = 451A5898DCAF44B3924C4007 /* nsis.icns */; };
 		EC99AE13A5DD33201AB92920 /* ArchiveEntry+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11FA1E7AB7410650A2798451 /* ArchiveEntry+Display.swift */; };
 		ED7C44399E734A5E77E654FE /* arj.icns in Resources */ = {isa = PBXBuildFile; fileRef = BC9AFB73FF1987FCD7788887 /* arj.icns */; };
+		EFA064CB5ACECD8285465916 /* HelpTopic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023422D79981D76BD5646C48 /* HelpTopic.swift */; };
 		F0608BED7D94BBB712C84EE2 /* apfs.icns in Resources */ = {isa = PBXBuildFile; fileRef = 994F42CA504DD7D312DE26D9 /* apfs.icns */; };
 		F6455BA2955C2659EECD24B5 /* ProgressPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C68413475D9D25BA76A319 /* ProgressPanelView.swift */; };
 		F772E81D979FD4D1471C3AEF /* gz.icns in Resources */ = {isa = PBXBuildFile; fileRef = 96FEADF1A572FAB4EAA70DD7 /* gz.icns */; };
@@ -93,6 +95,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		023422D79981D76BD5646C48 /* HelpTopic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpTopic.swift; sourceTree = "<group>"; };
 		06B8FA52C209651272E24F72 /* ArchiveViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveViewModel.swift; sourceTree = "<group>"; };
 		0E6C096B6D51BFE041D9520E /* xz.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = xz.icns; sourceTree = "<group>"; };
 		116CDDF2C723E3F14BE28287 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -164,6 +167,7 @@
 		D8FBD5084D1E8B932B680E74 /* SevenZipKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SevenZipKit; path = SevenZipKit; sourceTree = SOURCE_ROOT; };
 		D97D715A29772E743467CA28 /* chm.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = chm.icns; sourceTree = "<group>"; };
 		D9D1C99976B605416CC3F33A /* iso.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = iso.icns; sourceTree = "<group>"; };
+		E24A26DA9E894F9B8E0EF6B8 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		E2F5A0571F39D2009576955B /* AutomationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationService.swift; sourceTree = "<group>"; };
 		E3CE17201B08684842319F64 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
 		E46597CFD0AC275D45EEBA80 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -216,6 +220,7 @@
 				AB1202F2D162B0708FECCF73 /* ArchiveWindowRoot.swift */,
 				D4164381AC4B9936A936D47F /* AssociableFormat.swift */,
 				8621208188F43C320BDDB0B9 /* FocusedValues.swift */,
+				023422D79981D76BD5646C48 /* HelpTopic.swift */,
 				477A45A3EC2EC6C4EB6882E1 /* OpenArchiveWindowRegistry.swift */,
 				9CF4F6850525A97EA58FE104 /* ProfileStore.swift */,
 				BF74263CE835744E4BD6D333 /* RecentsStore.swift */,
@@ -271,6 +276,7 @@
 				7193253F84D3E8B6FEF6F919 /* EntryIcon.swift */,
 				C19245B70004DBB9CB6279E4 /* EntryRowStatus.swift */,
 				3DDE56908D5C037032D27A63 /* FileListView.swift */,
+				E24A26DA9E894F9B8E0EF6B8 /* HelpView.swift */,
 				896B97392DF7589ED066946D /* InspectorView.swift */,
 				8AE541D389A4A9FB280F2BE5 /* PasswordPromptView.swift */,
 				972813932823A7AA82D4182D /* ProfileEditorView.swift */,
@@ -508,6 +514,8 @@
 				BEFBDB4CCA2FC0678925836E /* FileAssociationService.swift in Sources */,
 				FE7A082EE02E5B964C9F9387 /* FileListView.swift in Sources */,
 				5019AA74E44F1B1583212694 /* FocusedValues.swift in Sources */,
+				EFA064CB5ACECD8285465916 /* HelpTopic.swift in Sources */,
+				4EEC91A277793CA322E5B0DE /* HelpView.swift in Sources */,
 				38BD03CF2D7EBA78927373AC /* InspectorView.swift in Sources */,
 				8EE73705FBEBFDD864570BA2 /* MultiItemDragTrigger.swift in Sources */,
 				AC423679783D05B702E19C8D /* OpenArchiveWindowRegistry.swift in Sources */,
@@ -606,7 +614,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.2;
+				MARKETING_VERSION = 1.7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
@@ -696,7 +704,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.2;
+				MARKETING_VERSION = 1.7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
