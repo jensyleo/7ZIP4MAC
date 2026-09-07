@@ -2,8 +2,7 @@ import Foundation
 
 /// One page of the Help window — a sidebar of topics rather than one long
 /// scrolling page, so a question has a place to be looked up rather than
-/// scrolled to. Structure and styling deliberately mirror `HelpTopic`/
-/// `HelpView` from jensyleo's own ROMForge.
+/// scrolled to.
 struct HelpTopic: Identifiable, Hashable {
     let id: String
     let title: String

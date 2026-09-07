@@ -2,7 +2,7 @@ import SwiftUI
 
 /// "7ZIP4MAC Help" window — searchable sidebar of topics rather than one long
 /// scrolling page, so a question has a place to be looked up rather than
-/// scrolled to. Mirrored from jensyleo's own ROMForge.
+/// scrolled to.
 struct HelpView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var topics: [HelpTopic] = HelpLibrary.topics
