@@ -143,10 +143,8 @@ public final class CompressionViewModel {
                 self.phase = .idle
             } catch ArchiveError.cancelled {
                 self.phase = .idle
-            } catch let error as ArchiveError {
-                self.phase = .failed(message: error.localizedDescription)
             } catch {
-                self.phase = .failed(message: error.localizedDescription)
+                self.phase = .failed(message: error.displayMessage)
             }
         }
     }

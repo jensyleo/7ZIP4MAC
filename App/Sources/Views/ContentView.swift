@@ -467,8 +467,9 @@ struct ContentView: View {
         // filtered out here the same way test/delete already do — otherwise
         // selecting it and hitting Extract would ask the engine to extract a
         // nonexistent ".." path.
-        let paths = Array(selection).filter { $0 != ".." }
-        let selectedEntries = archive.entries.filter { paths.contains($0.id) }
+        let selectedIDs = selection.subtracting([".."])
+        let paths = Array(selectedIDs)
+        let selectedEntries = archive.entries.filter { selectedIDs.contains($0.id) }
         let selectionHasFolder = selectedEntries.contains { $0.isDirectory }
 
         // The archive-name wrapper subfolder is only for whole-archive
