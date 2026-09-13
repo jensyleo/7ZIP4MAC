@@ -53,10 +53,8 @@ public final class BenchmarkViewModel {
                 self.state = .done(result)
             } catch is CancellationError {
                 self.state = .idle
-            } catch let error as ArchiveError {
-                self.state = .failed(message: error.localizedDescription)
             } catch {
-                self.state = .failed(message: error.localizedDescription)
+                self.state = .failed(message: error.displayMessage)
             }
         }
     }

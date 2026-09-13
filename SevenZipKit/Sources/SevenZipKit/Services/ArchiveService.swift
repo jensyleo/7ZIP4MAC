@@ -89,9 +89,7 @@ public struct ArchiveService: ArchiveServing {
         let fallback = Archive(url: url, properties: rootProperties, entries: rootEntries)
         guard depth < Self.maxUnwrapDepth else { return fallback }
 
-        let staging = FileManager.default.temporaryDirectory
-            .appendingPathComponent("7ZIP4MAC-Unwrap-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+        let staging = try FileManager.default.makeScratchDirectory(tag: "Unwrap")
 
         do {
             let request = ExtractionRequest(

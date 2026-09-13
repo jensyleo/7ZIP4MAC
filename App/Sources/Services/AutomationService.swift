@@ -23,6 +23,20 @@ struct AutomationDisabledError: LocalizedError {
     }
 }
 
+/// Thrown when `AutomationService.compress` is asked for a destination whose
+/// extension doesn't match any writable ``ArchiveFormat``. Matching by file
+/// extension and silently falling back to `.7z` for anything unrecognized
+/// was a real bug here (mirroring the one already fixed in
+/// `ArchiveViewModel.writableFormat`) — a Shortcut or AppleScript command
+/// targeting, say, "archive.xyz" would silently produce actual 7z content
+/// under that misleading name instead of failing.
+struct UnsupportedDestinationFormatError: LocalizedError {
+    let destination: URL
+    var errorDescription: String? {
+        "“\(destination.lastPathComponent)” doesn't match a supported archive format. Use a .7z, .zip, or .tar destination."
+    }
+}
+
 /// Headless compress/extract operations shared by AppleScript commands and
 /// App Intents (Shortcuts/Siri) — independent of any ViewModel or UI
 /// progress state, since both callers run outside a visible window.
@@ -32,9 +46,11 @@ enum AutomationService {
         destination: URL,
         password: String? = nil
     ) async throws -> URL {
+        guard let format = ArchiveFormat.allCases.first(where: { $0.fileExtension == destination.pathExtension.lowercased() }) else {
+            throw UnsupportedDestinationFormatError(destination: destination)
+        }
         let executable = try BundledEngine.resolve()
         let service = ArchiveService(executable: executable)
-        let format = ArchiveFormat.allCases.first { $0.fileExtension == destination.pathExtension.lowercased() } ?? .sevenZip
         let request = CompressionRequest(
             destinationURL: destination,
             sourceURLs: sources,

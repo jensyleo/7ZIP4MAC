@@ -217,12 +217,9 @@ public final class ArchiveViewModel {
                 self.passwordAttemptFailed = (password?.isEmpty == false)
                 self.pendingPasswordURL = url
                 self.state = .empty
-            } catch let error as ArchiveError {
-                if Task.isCancelled { return }
-                self.state = .failed(message: error.localizedDescription)
             } catch {
                 if Task.isCancelled { return }
-                self.state = .failed(message: error.localizedDescription)
+                self.state = .failed(message: error.displayMessage)
             }
         }
     }
@@ -317,10 +314,8 @@ public final class ArchiveViewModel {
                 self.extractionState = .idle
             } catch ArchiveError.cancelled {
                 self.extractionState = .idle
-            } catch let error as ArchiveError {
-                self.extractionState = .failed(message: error.localizedDescription)
             } catch {
-                self.extractionState = .failed(message: error.localizedDescription)
+                self.extractionState = .failed(message: error.displayMessage)
             }
         }
     }
@@ -399,7 +394,7 @@ public final class ArchiveViewModel {
                     ? "Added “\(sources[0].lastPathComponent)”."
                     : "Added \(sources.count) items."
             } catch {
-                self.editMessage = Self.describe(error)
+                self.editMessage = error.displayMessage
             }
         }
     }
@@ -435,8 +430,7 @@ public final class ArchiveViewModel {
             throw AddFilesError(message: Self.unwritableFormatMessage(for: archive))
         }
         let folder = currentFolder
-        let scratch = FileManager.default.temporaryDirectory
-            .appendingPathComponent("7ZIP4MAC-Add-\(UUID().uuidString)", isDirectory: true)
+        let scratch = try FileManager.default.makeScratchDirectory(tag: "Add")
         defer { try? FileManager.default.removeItem(at: scratch) }
         let destRoot = folder.isEmpty ? scratch : scratch.appendingPathComponent(folder, isDirectory: true)
         try FileManager.default.createDirectory(at: destRoot, withIntermediateDirectories: true)
@@ -477,7 +471,7 @@ public final class ArchiveViewModel {
                     ? "Deleted “\((paths[0] as NSString).lastPathComponent)”."
                     : "Deleted \(paths.count) items."
             } catch {
-                self.editMessage = Self.describe(error)
+                self.editMessage = error.displayMessage
             }
         }
     }
@@ -517,7 +511,7 @@ public final class ArchiveViewModel {
                 guard notifySuccess else { return }
                 self.editMessage = "Moved “\((path as NSString).lastPathComponent)”."
             } catch {
-                self.editMessage = Self.describe(error)
+                self.editMessage = error.displayMessage
             }
         }
     }
@@ -549,11 +543,9 @@ public final class ArchiveViewModel {
             return
         }
         Task { [serviceProvider] in
-            let scratch = FileManager.default.temporaryDirectory
-                .appendingPathComponent("7ZIP4MAC-Copy-\(UUID().uuidString)", isDirectory: true)
-            defer { try? FileManager.default.removeItem(at: scratch) }
             do {
-                try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+                let scratch = try FileManager.default.makeScratchDirectory(tag: "Copy")
+                defer { try? FileManager.default.removeItem(at: scratch) }
                 let service = try serviceProvider()
                 let password = self.sessionPassword
 
@@ -588,7 +580,7 @@ public final class ArchiveViewModel {
                 guard notifySuccess else { return }
                 self.editMessage = "Copied to “\(newPath)”."
             } catch {
-                self.editMessage = Self.describe(error)
+                self.editMessage = error.displayMessage
             }
         }
     }
@@ -604,10 +596,6 @@ public final class ArchiveViewModel {
     /// message.
     public func reportEditResult(_ message: String) {
         editMessage = message
-    }
-
-    private static func describe(_ error: Error) -> String {
-        (error as? ArchiveError)?.localizedDescription ?? error.localizedDescription
     }
 
     /// Whether `path` already names an entry in `entries` — trailing slashes

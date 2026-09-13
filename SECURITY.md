@@ -46,6 +46,13 @@ The app persists only:
 
 Passwords for encrypted archives are kept in memory only, never written to disk.
 
+**Known limitation**: the password is passed to the bundled `7zz` engine as a
+command-line argument (its only supported input for this), so it is briefly
+visible in that process's argument list (`ps`) to any other process the same
+local user can already run — no different in kind from any other app driving
+a CLI tool with a `-p<password>` style flag. There is no stdin/environment
+alternative in `7zz` to avoid this.
+
 ### Code Signing and Sandboxing
 
 The app is ad-hoc signed for development builds. Production releases require a Developer ID certificate (not using App Sandbox):
@@ -64,6 +71,29 @@ Formal security review covered:
 - **Archive parsing**: Archive data does not reach subprocess arguments, filesystem paths, or native dialogs
 
 **Result**: No high-confidence, exploitable vulnerabilities identified.
+
+## Security Review (v1.7.7)
+
+Full-codebase audit (not just a diff). Findings and fixes:
+
+- **Argument injection via entry names**: an archive entry whose name starts
+  with `-` (legal inside an archive, e.g. `-weird.txt`) was passed to `7zz`
+  without a `--` end-of-options marker, so it could be misread as a flag
+  instead of a file name — confirmed with a real test file (the operation
+  silently failed instead of acting on it). Fixed: every command that appends
+  user/archive-controlled paths (`extract`, `test`, `delete`, `rename`,
+  `compress`) now inserts `--` before them.
+- **Silent format fallback in automation**: `AutomationService.compress`
+  (used by AppleScript/Shortcuts) fell back to `.7z` for any destination
+  extension it didn't recognize, instead of failing — silently producing 7z
+  content under a misleading filename. Fixed: it now throws a clear error
+  instead, matching the same fix already applied to the in-app Add/Copy path.
+- **Password in argv**: see "Known limitation" above — inherent to driving
+  `7zz` via CLI, not something a code change here can avoid.
+- Zip-slip / path traversal on extraction: no evidence of an app-level gap —
+  extraction is delegated entirely to the bundled `7zz` engine, which handles
+  path resolution; the app adds no destination path of its own from
+  archive-controlled data.
 
 ## Reporting Security Issues
 

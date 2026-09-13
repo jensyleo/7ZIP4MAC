@@ -123,8 +123,14 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         if let password = request.password, !password.isEmpty {
             arguments.append("-p" + password)
         }
-        // Restrict to selected entries, if any.
-        arguments.append(contentsOf: request.selectedPaths)
+        // Restrict to selected entries, if any. "--" marks the end of
+        // switches so an entry name starting with "-" (legal inside an
+        // archive, e.g. "-weird.txt") is never misread as a 7zz flag —
+        // confirmed 7zz otherwise does exactly that instead of extracting it.
+        if !request.selectedPaths.isEmpty {
+            arguments.append("--")
+            arguments.append(contentsOf: request.selectedPaths)
+        }
 
         let state = ProgressReportingState(
             totalBytes: request.totalUncompressedSize,
@@ -198,6 +204,9 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         }
 
         arguments.append(request.destinationURL.path)
+        // "--" so a source file/folder name starting with "-" is never
+        // misread as a 7zz flag — see the matching comment in `extract`.
+        arguments.append("--")
         arguments.append(contentsOf: request.sourceArguments)
 
         let state = ProgressReportingState(
@@ -265,7 +274,12 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         }
         ArchiveLog.service.info("Test started for \(url.lastPathComponent, privacy: .public)")
         var arguments = ["t", "-y", "-p" + (password ?? ""), url.path]
-        arguments.append(contentsOf: selectedPaths)
+        // "--" so an entry name starting with "-" is never misread as a
+        // 7zz flag — see the matching comment in `extract`.
+        if !selectedPaths.isEmpty {
+            arguments.append("--")
+            arguments.append(contentsOf: selectedPaths)
+        }
         let result = try await runner.run(arguments)
 
         if result.exitCode >= 2 {
@@ -293,6 +307,9 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // So the flag is only included when there's an actual password.
         var arguments = ["d", url.path, "-y"]
         if let password, !password.isEmpty { arguments.append("-p" + password) }
+        // "--" so an entry name starting with "-" is never misread as a
+        // 7zz flag — see the matching comment in `extract`.
+        arguments.append("--")
         arguments.append(contentsOf: paths)
         let result = try await runner.run(arguments)
 
@@ -316,6 +333,9 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         ArchiveLog.service.info("Rename started for \(url.lastPathComponent, privacy: .public)")
         var arguments = ["rn", url.path, "-y"]
         if let password, !password.isEmpty { arguments.append("-p" + password) }
+        // "--" so an entry name starting with "-" is never misread as a
+        // 7zz flag — see the matching comment in `extract`.
+        arguments.append("--")
         arguments.append(contentsOf: [oldPath, newPath])
         let result = try await runner.run(arguments)
 

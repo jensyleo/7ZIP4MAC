@@ -23,7 +23,7 @@ struct CompressFilesIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         guard AutomationGate.shortcutsEnabled else { throw AutomationDisabledError(surface: "Shortcuts") }
 
-        let scratch = try makeScratchDirectory()
+        let scratch = try FileManager.default.makeScratchDirectory(tag: "Intent")
         defer { try? FileManager.default.removeItem(at: scratch) }
 
         var sources: [URL] = []
@@ -62,7 +62,7 @@ struct ExtractArchiveIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         guard AutomationGate.shortcutsEnabled else { throw AutomationDisabledError(surface: "Shortcuts") }
 
-        let scratch = try makeScratchDirectory()
+        let scratch = try FileManager.default.makeScratchDirectory(tag: "Intent")
         defer { try? FileManager.default.removeItem(at: scratch) }
 
         let archiveURL = scratch.appendingPathComponent(archive.filename.isEmpty ? "archive" : archive.filename)
@@ -78,12 +78,6 @@ struct ExtractArchiveIntent: AppIntent {
         let result = IntentFile(data: data, filename: zipped.lastPathComponent, type: .zip)
         return .result(value: result)
     }
-}
-
-private func makeScratchDirectory() throws -> URL {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("7ZIP4MAC-Intent-\(UUID().uuidString)", isDirectory: true)
-    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-    return url
 }
 
 /// Exposes the app's intents to Shortcuts/Spotlight with ready-made phrases.

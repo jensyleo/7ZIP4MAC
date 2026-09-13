@@ -35,30 +35,8 @@ final class CompressScriptCommand: NSScriptCommand {
         }
         let password = evaluatedArguments?["password"] as? String
 
-        let semaphore = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var result: Result<URL, Error>?
-        Task {
-            do {
-                let url = try await AutomationService.compress(
-                    sources: sources, destination: destination, password: password
-                )
-                result = .success(url)
-            } catch {
-                result = .failure(error)
-            }
-            semaphore.signal()
-        }
-        semaphore.wait()
-
-        switch result {
-        case .success(let url):
-            return url as NSURL
-        case .failure(let error):
-            scriptErrorNumber = OSAScriptError.executionFailed
-            scriptErrorString = "7ZIP4MAC couldn't create the archive: \(error.localizedDescription)"
-            return nil
-        case nil:
-            return nil
+        return runURLOperation(failureContext: "7ZIP4MAC couldn't create the archive") {
+            try await AutomationService.compress(sources: sources, destination: destination, password: password)
         }
     }
 }
@@ -82,14 +60,31 @@ final class ExtractScriptCommand: NSScriptCommand {
                 .appendingPathComponent(archive.deletingPathExtension().lastPathComponent)
         let password = evaluatedArguments?["password"] as? String
 
+        return runURLOperation(failureContext: "7ZIP4MAC couldn't extract the archive") {
+            try await AutomationService.extract(archive: archive, destination: destination, password: password)
+        }
+    }
+}
+
+// MARK: - Synchronous bridging
+
+private extension NSScriptCommand {
+    /// Runs `operation` to completion synchronously — blocking this
+    /// command's own dispatch with a semaphore, not the main thread, since
+    /// `performDefaultImplementation` must return its result directly while
+    /// `AutomationService` is `async` (AppleEvents are already delivered off
+    /// the main run loop step, so this is safe to block on). Returns the
+    /// operation's `URL` result as `NSURL`, or sets this command's script
+    /// error (prefixed with `failureContext`) and returns nil.
+    func runURLOperation(
+        failureContext: String,
+        operation: @escaping @Sendable () async throws -> URL
+    ) -> NSURL? {
         let semaphore = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var result: Result<URL, Error>?
         Task {
             do {
-                let url = try await AutomationService.extract(
-                    archive: archive, destination: destination, password: password
-                )
-                result = .success(url)
+                result = .success(try await operation())
             } catch {
                 result = .failure(error)
             }
@@ -102,7 +97,7 @@ final class ExtractScriptCommand: NSScriptCommand {
             return url as NSURL
         case .failure(let error):
             scriptErrorNumber = OSAScriptError.executionFailed
-            scriptErrorString = "7ZIP4MAC couldn't extract the archive: \(error.localizedDescription)"
+            scriptErrorString = "\(failureContext): \(error.localizedDescription)"
             return nil
         case nil:
             return nil
