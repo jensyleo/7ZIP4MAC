@@ -1,6 +1,14 @@
 import SwiftUI
 import AppKit
 
+/// Tracks whether any window has already been shown in this launch of the
+/// app — see the "orphan scaffold window" comment in `ArchiveWindowRoot`
+/// below for why this exists instead of checking `NSApp.windows.count` at
+/// the moment each window resolves.
+private enum WindowLaunchTracker {
+    nonisolated(unsafe) static var hasShownAnyWindow = false
+}
+
 /// One per window: owns that window's own `ArchiveViewModel` and
 /// `CompressionViewModel` so every window is fully independent — opening a
 /// second archive never touches whatever the first window is showing.
@@ -52,10 +60,30 @@ struct ArchiveWindowRoot: View {
                 // already-running app, on top of however many other windows
                 // already exist — sometimes more than one for a single
                 // request. Rather than let it flash on screen and close it a
-                // moment later (visible, looks like a bug), hide it before it
-                // ever gets shown; it's revealed again immediately below if
-                // it turns out to be a genuine new window after all.
-                if archiveURL == nil, NSApp.windows.count > 1 {
+                // moment later (visible, looks like a bug — this is the
+                // "app seems slow to show the file" symptom reported
+                // 2026-09-13), hide it before it ever gets shown; it's
+                // revealed again immediately below if it turns out to be a
+                // genuine new window after all.
+                //
+                // Checking `NSApp.windows.count > 1` here used to decide
+                // this, but that's a race: it only catches the scaffold
+                // window if some *other* window has already finished
+                // resolving by the time this one's callback runs — with no
+                // guaranteed order, the scaffold's own callback often ran
+                // *first*, saw a count of 1, and never got hidden at all
+                // (confirmed by screen-capturing an actual open — the empty
+                // window was plainly visible before the real one appeared on
+                // top of it). `WindowLaunchTracker` instead orders this by
+                // *when* each window is first shown in this launch: only the
+                // very first window shown (the normal single-window case, or
+                // this app's own initial empty window at launch) is ever
+                // exempt: everything after it that arrives empty is treated
+                // as a scaffold candidate, independent of how many other
+                // windows exist at that exact instant.
+                let isFirstWindowThisLaunch = !WindowLaunchTracker.hasShownAnyWindow
+                WindowLaunchTracker.hasShownAnyWindow = true
+                if archiveURL == nil, !isFirstWindowThisLaunch {
                     window.orderOut(nil)
                     isHiddenPendingOrphanCheck = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
