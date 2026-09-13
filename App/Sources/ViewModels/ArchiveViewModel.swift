@@ -92,6 +92,19 @@ public final class ArchiveViewModel {
         }
     }
 
+    /// Where entry-level operations (extract, test, Quick Look, drag-out)
+    /// should actually read from — see ``Archive/effectiveURL``. Equal to
+    /// ``archiveURL`` except for an unwrapped single-stream archive
+    /// (`.tar.bz2`, `.tar.gz`, …), where it's the real archive extracted
+    /// from inside it.
+    public var effectiveArchiveURL: URL? {
+        switch state {
+        case .loaded(let archive): return archive.effectiveURL
+        case .loading(let url): return url
+        case .empty, .failed: return nil
+        }
+    }
+
     public var archive: Archive? {
         if case .loaded(let archive) = state { return archive }
         return nil
@@ -155,6 +168,7 @@ public final class ArchiveViewModel {
         loadTask?.cancel()
         extractTask?.cancel()
         extractionState = .idle
+        cleanupStagingDirectory()
         state = .loading(url)
         entries = []
         currentFolder = ""
@@ -220,11 +234,22 @@ public final class ArchiveViewModel {
         extractTask?.cancel()
         extractTask = nil
         extractionState = .idle
+        cleanupStagingDirectory()
         state = .empty
         entries = []
         currentFolder = ""
         visibleEntries = []
         sessionPassword = nil
+    }
+
+    /// Deletes the currently-loaded archive's staging directory, if it has
+    /// one (an unwrapped `.tar.bz2`/`.tar.gz`/… — see
+    /// ``Archive/stagingDirectory``). Called before replacing or clearing
+    /// `state`, so that scratch directory never outlives the archive it was
+    /// extracted for.
+    private func cleanupStagingDirectory() {
+        guard case .loaded(let archive) = state, let staging = archive.stagingDirectory else { return }
+        try? FileManager.default.removeItem(at: staging)
     }
 
     // MARK: - Extraction
@@ -251,7 +276,7 @@ public final class ArchiveViewModel {
             : folder
         let total = uncompressedSize(of: archive, paths: selectedPaths)
         let request = ExtractionRequest(
-            archiveURL: archive.url,
+            archiveURL: archive.effectiveURL,
             destinationURL: destination,
             password: sessionPassword,
             selectedPaths: selectedPaths,
@@ -328,7 +353,7 @@ public final class ArchiveViewModel {
             do {
                 let service = try serviceProvider()
                 let password = self.sessionPassword
-                let ok = try await service.test(archiveAt: archive.url, selectedPaths: selectedPaths, password: password)
+                let ok = try await service.test(archiveAt: archive.effectiveURL, selectedPaths: selectedPaths, password: password)
                 guard ok == false || notifySuccess else { return }
                 let subject = selectedPaths.count == 1
                     ? "“\((selectedPaths[0] as NSString).lastPathComponent)”"
@@ -437,6 +462,10 @@ public final class ArchiveViewModel {
     ///   done. Failures always show, regardless.
     public func deleteEntries(paths: [String], notifySuccess: Bool = true) {
         guard case .loaded(let archive) = state, !paths.isEmpty else { return }
+        guard !archive.isUnwrapped else {
+            editMessage = Self.unwritableFormatMessage(for: archive)
+            return
+        }
         Task { [serviceProvider] in
             do {
                 let service = try serviceProvider()
@@ -456,6 +485,10 @@ public final class ArchiveViewModel {
     /// Moves (or renames) an entry to a new path within the same archive.
     public func moveEntry(path: String, toPath newPath: String, notifySuccess: Bool = true) {
         guard case .loaded(let archive) = state, path != newPath else { return }
+        guard !archive.isUnwrapped else {
+            editMessage = Self.unwritableFormatMessage(for: archive)
+            return
+        }
         // 7-Zip's `rn` doesn't check this itself — asked to rename onto a
         // path that's already taken, it silently creates a second entry
         // with that same name instead of erroring or replacing it, which
@@ -610,6 +643,7 @@ public final class ArchiveViewModel {
     private func reload(url: URL, password: String?) async throws {
         let service = try serviceProvider()
         let archive = try await service.open(archiveAt: url, password: password)
+        cleanupStagingDirectory()
         self.state = .loaded(archive)
         self.applySort()
     }

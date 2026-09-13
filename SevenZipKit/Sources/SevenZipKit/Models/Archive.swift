@@ -44,7 +44,9 @@ public struct ArchiveProperties: Hashable, Sendable {
 
 /// An opened archive: its location on disk, its properties, and its contents.
 public struct Archive: Hashable, Sendable {
-    /// The archive file's location on disk.
+    /// The archive file's location on disk — always the file the user
+    /// actually opened, for display (window title, "Extract All" subfolder
+    /// name, recents).
     public let url: URL
 
     /// Archive-level metadata.
@@ -53,11 +55,39 @@ public struct Archive: Hashable, Sendable {
     /// Every entry contained in the archive, in the order 7-Zip listed them.
     public let entries: [ArchiveEntry]
 
-    public init(url: URL, properties: ArchiveProperties, entries: [ArchiveEntry]) {
+    /// Where list/extract/test operations should actually read from.
+    ///
+    /// Equal to `url` for almost every archive. Differs only when `url` is a
+    /// single-stream compressor (bzip2/gzip/xz/…) with no entry list of its
+    /// own — `.tar.bz2`, `.tar.gz`, etc. — in which case `url` was
+    /// transparently unwrapped to the real archive (usually a `.tar`) sitting
+    /// inside it, extracted to ``stagingDirectory``.
+    public let effectiveURL: URL
+
+    /// The temporary directory `effectiveURL` was extracted into, when `url`
+    /// was unwrapped — nil otherwise. Owned by whoever opened this archive;
+    /// deleted when the archive is closed or replaced.
+    public let stagingDirectory: URL?
+
+    public init(
+        url: URL,
+        properties: ArchiveProperties,
+        entries: [ArchiveEntry],
+        effectiveURL: URL? = nil,
+        stagingDirectory: URL? = nil
+    ) {
         self.url = url
         self.properties = properties
         self.entries = entries
+        self.effectiveURL = effectiveURL ?? url
+        self.stagingDirectory = stagingDirectory
     }
+
+    /// Whether `url` itself couldn't be listed directly and had to be
+    /// unwrapped to reach real entries — bz2/gz/xz single-stream archives.
+    /// In-place edits (Add/Delete/Move/Copy) make no sense on these: there's
+    /// nothing to write back into, so the UI disables them for this case.
+    public var isUnwrapped: Bool { stagingDirectory != nil }
 
     /// Total uncompressed size of all file entries.
     public var totalSize: UInt64 {

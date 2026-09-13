@@ -47,9 +47,92 @@ public struct ArchiveService: ArchiveServing {
         self.init(bridge: SystemSevenZipBridge(executable: executable))
     }
 
+    /// Single-stream compressors: formats 7-Zip reports as the archive's
+    /// `Type` that carry exactly one anonymous data stream and no entry list
+    /// of their own — bzip2/gzip/xz all work this way, which is why opening
+    /// a bare `.tar.bz2` through `7zz l -slt` lists zero entries: the "file"
+    /// is the compressed stream itself, not a container. The real contents
+    /// (almost always a `.tar`) only appear once that stream is extracted.
+    private static let singleStreamFormats: Set<String> = ["bzip2", "gzip", "xz", "lzma", "z", "brotli", "lz4", "lz5"]
+
+    /// How many nested single-stream layers to unwrap before giving up (a
+    /// real `.tar.bz2` only ever needs one) — just a guard against chasing a
+    /// pathological or corrupt chain forever.
+    private static let maxUnwrapDepth = 4
+
     public func open(archiveAt url: URL, password: String? = nil) async throws -> Archive {
         let (properties, entries) = try await bridge.list(archiveAt: url, password: password)
-        return Archive(url: url, properties: properties, entries: entries)
+        guard entries.isEmpty, let format = properties.format,
+              Self.singleStreamFormats.contains(format.lowercased())
+        else {
+            return Archive(url: url, properties: properties, entries: entries)
+        }
+        return try await unwrap(url: url, properties: properties, password: password, depth: 0)
+    }
+
+    /// Extracts `url`'s single compressed stream to a staging directory and
+    /// lists whatever comes out, recursing if that's itself another
+    /// single-stream layer. Falls back to the original (entry-less) listing
+    /// if anything about the unwrap doesn't come out as expected, rather than
+    /// failing the whole open.
+    private func unwrap(
+        url: URL,
+        properties: ArchiveProperties,
+        password: String?,
+        depth: Int
+    ) async throws -> Archive {
+        guard depth < Self.maxUnwrapDepth else {
+            return Archive(url: url, properties: properties, entries: [])
+        }
+
+        let staging = FileManager.default.temporaryDirectory
+            .appendingPathComponent("7ZIP4MAC-Unwrap-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+
+        do {
+            let request = ExtractionRequest(
+                archiveURL: url, destinationURL: staging, password: password, selectedPaths: []
+            )
+            try await bridge.extract(request) { _ in }
+
+            let items = try FileManager.default.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil)
+            guard let innerURL = items.first, items.count == 1 else {
+                try? FileManager.default.removeItem(at: staging)
+                return Archive(url: url, properties: properties, entries: [])
+            }
+
+            if let (innerProperties, innerEntries) = try? await bridge.list(archiveAt: innerURL, password: password) {
+                if innerEntries.isEmpty, let innerFormat = innerProperties.format,
+                   Self.singleStreamFormats.contains(innerFormat.lowercased()) {
+                    let deeper = try await unwrap(url: innerURL, properties: innerProperties, password: password, depth: depth + 1)
+                    // The deeper unwrap staged its own directory; this level's
+                    // staging only held the intermediate file, no longer needed.
+                    try? FileManager.default.removeItem(at: staging)
+                    return Archive(
+                        url: url, properties: deeper.properties, entries: deeper.entries,
+                        effectiveURL: deeper.effectiveURL, stagingDirectory: deeper.stagingDirectory
+                    )
+                }
+                return Archive(
+                    url: url, properties: innerProperties, entries: innerEntries,
+                    effectiveURL: innerURL, stagingDirectory: staging
+                )
+            }
+
+            // The unwrapped stream isn't itself a recognizable archive — a
+            // plain file (not a tar) was bz2/gz/xz-compressed on its own,
+            // e.g. "notes.txt.gz". 7-Zip's own -slt never reports a Path for
+            // this single stream, so there's no entry name selective
+            // extraction could target; falling back to the entry-less
+            // listing keeps this honest rather than faking one. "Extract
+            // All" on `url` itself still works fine either way — it doesn't
+            // need an entry to extract a single-stream compressor's content.
+            try? FileManager.default.removeItem(at: staging)
+            return Archive(url: url, properties: properties, entries: [])
+        } catch {
+            try? FileManager.default.removeItem(at: staging)
+            return Archive(url: url, properties: properties, entries: [])
+        }
     }
 
     public func extract(

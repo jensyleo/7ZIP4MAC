@@ -40,11 +40,21 @@ enum DragOut {
 
     /// Extracts a single entry (a folder is extracted with its whole subtree)
     /// into a unique staging directory and returns the extracted item's URL.
+    ///
+    /// - Parameter archiveURL: The archive's own on-disk location, as shown
+    ///   in the window title — *not* necessarily where 7-Zip should read
+    ///   from. Resolved through ``OpenArchiveWindowRegistry`` to that
+    ///   window's live ``ArchiveViewModel/effectiveArchiveURL`` first, so a
+    ///   drag-out or Quick Look on an unwrapped `.tar.bz2`/`.tar.gz`/… reads
+    ///   from the real archive extracted inside it, not the single-stream
+    ///   compressor 7-Zip can't select individual entries from.
+    @MainActor
     static func extract(
         entryPath: String,
         archiveURL: URL,
         password: String?
     ) async throws -> URL {
+        let effectiveURL = OpenArchiveWindowRegistry.viewModel(for: archiveURL)?.effectiveArchiveURL ?? archiveURL
         let executable = try BundledEngine.resolve()
         let service = ArchiveService(executable: executable)
 
@@ -53,7 +63,7 @@ enum DragOut {
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
 
         let request = ExtractionRequest(
-            archiveURL: archiveURL,
+            archiveURL: effectiveURL,
             destinationURL: temp,
             password: password,
             selectedPaths: [entryPath],
