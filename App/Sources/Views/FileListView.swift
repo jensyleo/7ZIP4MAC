@@ -141,9 +141,57 @@ struct FileListView: View {
             case 51 where !selection.isEmpty, 117 where !selection.isEmpty: // kVK_Delete, kVK_ForwardDelete
                 onDeleteSelection()
                 return nil
+            case 125 where !viewModel.visibleEntries.isEmpty: // kVK_DownArrow
+                moveSelection(by: 1, extend: event.modifierFlags.contains(.shift))
+                return nil
+            case 126 where !viewModel.visibleEntries.isEmpty: // kVK_UpArrow
+                moveSelection(by: -1, extend: event.modifierFlags.contains(.shift))
+                return nil
+            case 124: // kVK_RightArrow — enter the selected folder, Finder-style
+                if let entry = singleSelectedEntry, entry.isDirectory, !entry.isParentLink {
+                    activate(entry)
+                    return nil
+                }
+                return event
+            case 123 where !viewModel.currentFolder.isEmpty: // kVK_LeftArrow — go up a level, Finder-style
+                selection = []
+                viewModel.goUp()
+                return nil
             default:
                 return event
             }
+        }
+    }
+
+    /// Moves the selection up/down by `delta` row(s) among
+    /// `viewModel.visibleEntries` — Up/Down arrow navigation, since `Table`'s
+    /// own built-in arrow handling (which would otherwise do this for free)
+    /// never gets a chance to run: the same custom `Button`-per-cell design
+    /// that requires `installDeleteKeyMonitor`'s `NSEvent` monitor above
+    /// (rather than `.onKeyPress`) also means `Table` isn't driving
+    /// selection itself. No current selection moves to the first row going
+    /// down or the last row going up, matching Finder's own List view.
+    /// `extend` (Shift held) grows/shrinks a contiguous range from
+    /// `selectionAnchor`, the same anchor plain Shift-click already uses.
+    private func moveSelection(by delta: Int, extend: Bool) {
+        let rows = viewModel.visibleEntries
+        guard !rows.isEmpty else { return }
+        let currentIndex: Int
+        if let anchor = selectionAnchor, let index = rows.firstIndex(where: { $0.id == anchor }) {
+            currentIndex = index
+        } else if let selected = selection.first, let index = rows.firstIndex(where: { $0.id == selected }) {
+            currentIndex = index
+        } else {
+            currentIndex = delta > 0 ? -1 : rows.count
+        }
+        let newIndex = min(max(currentIndex + delta, 0), rows.count - 1)
+        let newEntry = rows[newIndex]
+        if extend, let anchor = selectionAnchor, let anchorIndex = rows.firstIndex(where: { $0.id == anchor }) {
+            let range = anchorIndex < newIndex ? anchorIndex...newIndex : newIndex...anchorIndex
+            selection = Set(rows[range].map(\.id))
+        } else {
+            selection = [newEntry.id]
+            selectionAnchor = newEntry.id
         }
     }
 
