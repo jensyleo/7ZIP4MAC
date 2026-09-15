@@ -154,17 +154,25 @@ final class SevenZip4MACToolbarController: NSObject, NSToolbarDelegate {
     /// navigation, an extraction progress tick), re-allocating an
     /// `NSImage`/`SymbolConfiguration` pair for all ~14 toolbar items each
     /// time even though at most one or two actually changed.
+    /// Applied to every toolbar symbol, destructive or not — without an
+    /// explicit configuration, `NSToolbarItem` renders an SF Symbol at
+    /// whatever provisional size/weight it resolves during the toolbar's
+    /// own early layout, then re-renders it once the toolbar's real
+    /// point-size context is established a moment later. That's the visible
+    /// icon flicker right on launch reported 2026-09-16 ("apenas abro la
+    /// app los iconos... titilan") — a fixed configuration up front gives
+    /// every icon a stable size/weight from its very first frame.
+    private static let baseSymbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+
     private func symbolImage(_ name: String, isDestructive: Bool) -> NSImage? {
         let key = "\(name)|\(isDestructive)" as NSString
         if let cached = Self.symbolCache.object(forKey: key) { return cached }
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
-        let result: NSImage
+        var config = Self.baseSymbolConfiguration
         if isDestructive {
-            let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
-            result = image.withSymbolConfiguration(config) ?? image
-        } else {
-            result = image
+            config = config.applying(NSImage.SymbolConfiguration(paletteColors: [.systemRed]))
         }
+        let result = image.withSymbolConfiguration(config) ?? image
         Self.symbolCache.setObject(result, forKey: key)
         return result
     }
