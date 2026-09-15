@@ -232,6 +232,18 @@ struct FileListView: View {
     /// clicked row, and a second click within the double-click interval
     /// activates the row instead of just selecting it.
     private func handleClick(on entry: ArchiveEntry) {
+        // The ".." row reads visually as a button (a lone back-arrow glyph,
+        // no real name), not as a content row you select-then-activate —
+        // Windows Explorer's own ".." entry behaves the same way. A single
+        // click goes up immediately instead of only selecting and waiting
+        // for a second click, matching that expectation ("casi no acepta
+        // el clic" — 2026-09-16, after the row's hit area was already fixed
+        // to cover the whole row: the row *was* selectable, just not
+        // activating on the click the user expected to act like a button).
+        if entry.isParentLink {
+            activate(entry)
+            return
+        }
         // Double-click detection: our own clock, not `NSEvent.clickCount`.
         let now = Date()
         let isDoubleClick = entry.id == lastClickedID
