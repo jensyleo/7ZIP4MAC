@@ -58,6 +58,14 @@ struct FileListView: View {
                         EntryIcon(entry: entry)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    // Without this, the button's hit area only covers its
+                    // actual drawn content (icon + text) — the `.frame`
+                    // above only stretches what's painted, not what's
+                    // clickable. Barely noticeable for a long file name that
+                    // already fills the column, but a short name (".." to go
+                    // up a folder is the extreme case, reported 2026-09-16 as
+                    // "no acepta clic") left most of the row dead space.
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(entry.path)
