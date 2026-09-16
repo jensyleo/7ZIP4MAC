@@ -28,6 +28,15 @@ struct FileListView: View {
     /// ("no permite seleccionar más [de una fila]" — 2026-09-16).
     @State private var focusedID: ArchiveEntry.ID?
 
+    /// The selection that existed *before* the current anchor's range started
+    /// being extended — preserved underneath every Shift/Cmd-Shift range so
+    /// extending doesn't discard it. Reset to empty whenever a plain
+    /// click/arrow picks a brand-new single-row anchor (nothing to
+    /// preserve), and snapshotted to the post-toggle selection on a Cmd-click
+    /// (so a row added out of band survives a later range extension —
+    /// "se mantienen y se suma el rango nuevo", 2026-09-16).
+    @State private var baseSelection: Set<ArchiveEntry.ID> = []
+
     /// Tracks the last click's target/time to detect double-clicks ourselves.
     /// More reliable than reading `NSEvent.currentEvent?.clickCount` inside a
     /// Button action, which occasionally raced SwiftUI's event dispatch and
@@ -221,10 +230,11 @@ struct FileListView: View {
         let newEntry = rows[newIndex]
         focusedID = newEntry.id
         if extend, let anchor = selectionAnchor, let anchorIndex = rows.firstIndex(where: { $0.id == anchor }) {
-            selection = Self.selectRange(from: anchorIndex, to: newIndex, in: rows)
+            selection = baseSelection.union(Self.selectRange(from: anchorIndex, to: newIndex, in: rows))
         } else {
             selection = [newEntry.id]
             selectionAnchor = newEntry.id
+            baseSelection = []
         }
     }
 
@@ -241,11 +251,11 @@ struct FileListView: View {
         if selectionAnchor == nil { selectionAnchor = anchor }
         focusedID = edgeEntry.id
         guard let anchorIndex = rows.firstIndex(where: { $0.id == anchor }) else {
-            selection = [edgeEntry.id]
+            selection = baseSelection.union([edgeEntry.id])
             return
         }
         let edgeIndex = last ? rows.count - 1 : 0
-        selection = Self.selectRange(from: anchorIndex, to: edgeIndex, in: rows)
+        selection = baseSelection.union(Self.selectRange(from: anchorIndex, to: edgeIndex, in: rows))
     }
 
     /// Builds a contiguous-range selection between two row indices (inclusive
@@ -313,6 +323,7 @@ struct FileListView: View {
         guard let event = NSApp.currentEvent else {
             selection = [entry.id]
             selectionAnchor = entry.id
+            baseSelection = []
             return
         }
 
@@ -324,14 +335,19 @@ struct FileListView: View {
                 selection.insert(entry.id)
             }
             selectionAnchor = entry.id
+            // A later Shift/Cmd-Shift range extension starts fresh from
+            // *this* row, but shouldn't discard what Cmd-click just built up
+            // — see `baseSelection`'s doc comment.
+            baseSelection = selection
         } else if event.modifierFlags.contains(.shift),
                   let anchor = selectionAnchor,
                   let anchorIndex = rows.firstIndex(where: { $0.id == anchor }),
                   let clickedIndex = rows.firstIndex(where: { $0.id == entry.id }) {
-            selection = Self.selectRange(from: anchorIndex, to: clickedIndex, in: rows)
+            selection = baseSelection.union(Self.selectRange(from: anchorIndex, to: clickedIndex, in: rows))
         } else {
             selection = [entry.id]
             selectionAnchor = entry.id
+            baseSelection = []
         }
     }
 
