@@ -173,17 +173,26 @@ final class SevenZip4MACToolbarController: NSObject, NSToolbarDelegate {
     /// plain disabled `NSToolbarItem` like these; baking the dimming into
     /// the bitmap sidesteps that dynamic path entirely rather than
     /// depending on which item style avoids the bug.
+    /// A visibly larger toolbar glyph than AppKit's own default point size
+    /// — jensyleo's own request (2026-09-16): "sigo viendo los iconos muy
+    /// chicos". Safe to bake into the image now (unlike the earlier,
+    /// reverted attempt at a fixed configuration — see git history and
+    /// this method's own doc comment): that attempt fought
+    /// `NSToolbarItem`'s *dynamic* disabled-state dimming, which no longer
+    /// runs at all now that `item.isEnabled` is always `true`. Nothing here
+    /// depends on that dynamic path anymore, so a fixed size doesn't
+    /// resurrect the flicker it caused before.
+    private static let symbolSize = NSImage.SymbolConfiguration(pointSize: 19, weight: .medium)
+
     private func symbolImage(_ name: String, isDestructive: Bool, isEnabled: Bool) -> NSImage? {
         let key = "\(name)|\(isDestructive)|\(isEnabled)" as NSString
         if let cached = Self.symbolCache.object(forKey: key) { return cached }
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
-        var result: NSImage
+        var config = Self.symbolSize
         if isDestructive {
-            let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
-            result = image.withSymbolConfiguration(config) ?? image
-        } else {
-            result = image
+            config = config.applying(NSImage.SymbolConfiguration(paletteColors: [.systemRed]))
         }
+        var result = image.withSymbolConfiguration(config) ?? image
         if !isEnabled {
             result = Self.dimmed(result)
         }

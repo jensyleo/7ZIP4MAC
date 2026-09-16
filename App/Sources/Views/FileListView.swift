@@ -195,12 +195,19 @@ struct FileListView: View {
         let newIndex = min(max(currentIndex + delta, 0), rows.count - 1)
         let newEntry = rows[newIndex]
         if extend, let anchor = selectionAnchor, let anchorIndex = rows.firstIndex(where: { $0.id == anchor }) {
-            let range = anchorIndex < newIndex ? anchorIndex...newIndex : newIndex...anchorIndex
-            selection = Set(rows[range].map(\.id))
+            selection = Self.selectRange(from: anchorIndex, to: newIndex, in: rows)
         } else {
             selection = [newEntry.id]
             selectionAnchor = newEntry.id
         }
+    }
+
+    /// Builds a contiguous-range selection between two row indices (inclusive
+    /// on both ends, order-independent) — the anchor-based range logic shared
+    /// by Shift-arrow (`moveSelection`) and Shift-click (`handleClick`).
+    private static func selectRange(from anchorIndex: Int, to targetIndex: Int, in rows: [ArchiveEntry]) -> Set<ArchiveEntry.ID> {
+        let range = anchorIndex < targetIndex ? anchorIndex...targetIndex : targetIndex...anchorIndex
+        return Set(rows[range].map(\.id))
     }
 
     private func removeDeleteKeyMonitor() {
@@ -274,8 +281,7 @@ struct FileListView: View {
                   let anchor = selectionAnchor,
                   let anchorIndex = rows.firstIndex(where: { $0.id == anchor }),
                   let clickedIndex = rows.firstIndex(where: { $0.id == entry.id }) {
-            let range = anchorIndex < clickedIndex ? anchorIndex...clickedIndex : clickedIndex...anchorIndex
-            selection = Set(rows[range].map(\.id))
+            selection = Self.selectRange(from: anchorIndex, to: clickedIndex, in: rows)
         } else {
             selection = [entry.id]
             selectionAnchor = entry.id
