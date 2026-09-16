@@ -61,13 +61,17 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         self.init(runner: SevenZipRunner(executable: executable))
     }
 
+    private static func requireExists(_ url: URL) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw ArchiveError.archiveNotFound(path: url.path)
+        }
+    }
+
     public func list(
         archiveAt url: URL,
         password: String?
     ) async throws -> (ArchiveProperties, [ArchiveEntry]) {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw ArchiveError.archiveNotFound(path: url.path)
-        }
+        try Self.requireExists(url)
 
         ArchiveLog.service.info("Listing started for \(url.lastPathComponent, privacy: .public)")
 
@@ -269,9 +273,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     }
 
     public func test(archiveAt url: URL, selectedPaths: [String], password: String?) async throws -> Bool {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw ArchiveError.archiveNotFound(path: url.path)
-        }
+        try Self.requireExists(url)
         ArchiveLog.service.info("Test started for \(url.lastPathComponent, privacy: .public)")
         var arguments = ["t", "-y", "-p" + (password ?? ""), url.path]
         // "--" so an entry name starting with "-" is never misread as a
@@ -294,9 +296,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     }
 
     public func delete(archiveAt url: URL, paths: [String], password: String?) async throws {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw ArchiveError.archiveNotFound(path: url.path)
-        }
+        try Self.requireExists(url)
         guard !paths.isEmpty else { return }
 
         ArchiveLog.service.info("Delete started for \(url.lastPathComponent, privacy: .public)")
@@ -326,9 +326,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     }
 
     public func rename(archiveAt url: URL, from oldPath: String, to newPath: String, password: String?) async throws {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw ArchiveError.archiveNotFound(path: url.path)
-        }
+        try Self.requireExists(url)
 
         ArchiveLog.service.info("Rename started for \(url.lastPathComponent, privacy: .public)")
         var arguments = ["rn", url.path, "-y"]
