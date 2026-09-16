@@ -71,10 +71,21 @@ enum DragOut {
         )
         try await service.extract(request) { _ in }
 
-        // 7-Zip preserves the entry's path, so it lands at temp/<entryPath>.
-        // Drop any trailing slash so a folder URL resolves to the real directory.
-        let trimmed = entryPath.hasSuffix("/") ? String(entryPath.dropLast()) : entryPath
-        return temp.appending(path: trimmed)
+        // Deliberately *not* `temp.appending(path: entryPath)`: `entryPath`
+        // is an untrusted string from inside a possibly-malicious archive,
+        // and a name like "../../../../Users/me/.ssh/id_rsa" would resolve
+        // outside `temp` to a real file on disk — which `MultiItemDragTrigger`
+        // and the cross-archive drop path then *move*, silently relocating
+        // or exfiltrating whatever that traversal landed on (found in
+        // security audit, 2026-09-16). 7-Zip itself never writes outside
+        // `temp` — it sanitizes `../` on extraction — so the single item it
+        // actually wrote there is always the real, safe result, the same
+        // pattern `ArchiveService`'s tar-unwrap already relies on.
+        let items = try FileManager.default.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil)
+        guard let extracted = items.first, items.count == 1 else {
+            throw ArchiveError.operationFailed(code: -1, message: "Extraction did not produce the expected single item.")
+        }
+        return extracted
     }
 
     /// Deletes staging folders left over from previous drags. Call once at app
