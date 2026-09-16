@@ -8,19 +8,10 @@ import SevenZipKit
 struct EntryIcon: View {
     let entry: ArchiveEntry
 
-    /// Slightly larger than a real file-type icon (16pt) — jensyleo's own
-    /// request (2026-09-16) to make the ".." row read more clearly as a
-    /// clickable "go up" control, since it's the one row with no real name
-    /// alongside its icon (every other row's own hit area already covers
-    /// the whole row, not just its icon — see `.contentShape` on the Name
-    /// column's button).
-    private static let parentLinkIconSize: CGFloat = 20
-
     var body: some View {
         if entry.isParentLink {
             Image(systemName: "arrow.turn.up.left")
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: Self.parentLinkIconSize, height: Self.parentLinkIconSize)
+                .frame(width: 16, height: 16)
                 .foregroundStyle(.secondary)
         } else {
             Image(nsImage: IconProvider.icon(for: entry))
