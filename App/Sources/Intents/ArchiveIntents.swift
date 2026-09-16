@@ -28,7 +28,12 @@ struct CompressFilesIntent: AppIntent {
 
         var sources: [URL] = []
         for file in files {
-            let url = scratch.appendingPathComponent(file.filename.isEmpty ? UUID().uuidString : file.filename)
+            // `file.filename` comes from Shortcuts, not from anything this
+            // app controls — a crafted "../../../Library/LaunchAgents/x"
+            // would otherwise let a malicious Shortcut write outside
+            // `scratch`. `lastPathComponent` strips any directory traversal.
+            let safeName = (file.filename as NSString).lastPathComponent
+            let url = scratch.appendingPathComponent(safeName.isEmpty ? UUID().uuidString : safeName)
             try file.data.write(to: url)
             sources.append(url)
         }
@@ -65,7 +70,10 @@ struct ExtractArchiveIntent: AppIntent {
         let scratch = try FileManager.default.makeScratchDirectory(tag: "Intent")
         defer { try? FileManager.default.removeItem(at: scratch) }
 
-        let archiveURL = scratch.appendingPathComponent(archive.filename.isEmpty ? "archive" : archive.filename)
+        // Same traversal risk as `CompressFilesIntent` above: sanitize before
+        // building a path from Shortcuts-supplied input.
+        let safeName = (archive.filename as NSString).lastPathComponent
+        let archiveURL = scratch.appendingPathComponent(safeName.isEmpty ? "archive" : safeName)
         try archive.data.write(to: archiveURL)
 
         let destination = scratch.appendingPathComponent("Extracted", isDirectory: true)
