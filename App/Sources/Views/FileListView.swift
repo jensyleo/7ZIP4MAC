@@ -20,6 +20,14 @@ struct FileListView: View {
     /// range selection (standard macOS/Windows convention).
     @State private var selectionAnchor: ArchiveEntry.ID?
 
+    /// The row the keyboard cursor is currently on — the *moving* end of a
+    /// Shift-arrow range, as opposed to `selectionAnchor`, its fixed end.
+    /// Without tracking this separately, `moveSelection` had to derive the
+    /// current position from the anchor every time, so repeated Shift-arrow
+    /// presses kept re-selecting just anchor±1 instead of growing the range
+    /// ("no permite seleccionar más [de una fila]" — 2026-09-16).
+    @State private var focusedID: ArchiveEntry.ID?
+
     /// Tracks the last click's target/time to detect double-clicks ourselves.
     /// More reliable than reading `NSEvent.currentEvent?.clickCount` inside a
     /// Button action, which occasionally raced SwiftUI's event dispatch and
@@ -150,10 +158,18 @@ struct FileListView: View {
                 onDeleteSelection()
                 return nil
             case 125 where !viewModel.visibleEntries.isEmpty: // kVK_DownArrow
-                moveSelection(by: 1, extend: event.modifierFlags.contains(.shift))
+                if event.modifierFlags.contains([.command, .shift]) {
+                    extendSelectionToEdge(last: true)
+                } else {
+                    moveSelection(by: 1, extend: event.modifierFlags.contains(.shift))
+                }
                 return nil
             case 126 where !viewModel.visibleEntries.isEmpty: // kVK_UpArrow
-                moveSelection(by: -1, extend: event.modifierFlags.contains(.shift))
+                if event.modifierFlags.contains([.command, .shift]) {
+                    extendSelectionToEdge(last: false)
+                } else {
+                    moveSelection(by: -1, extend: event.modifierFlags.contains(.shift))
+                }
                 return nil
             case 124: // kVK_RightArrow — enter the selected folder, Finder-style
                 if let entry = singleSelectedEntry, entry.isDirectory, !entry.isParentLink {
@@ -182,10 +198,19 @@ struct FileListView: View {
     /// `extend` (Shift held) grows/shrinks a contiguous range from
     /// `selectionAnchor`, the same anchor plain Shift-click already uses.
     private func moveSelection(by delta: Int, extend: Bool) {
-        let rows = viewModel.visibleEntries
+        // The ".." row (if present) is index 0 of `visibleEntries`, but it's
+        // navigation chrome, not a selectable item — Finder doesn't let you
+        // select "go up a level" as part of a multi-selection either.
+        // Without this filter, arrowing/extending to the top of the list
+        // could select "..", corrupting whatever the selection was meant to
+        // be used for ("selecciona mal" — 2026-09-16, hit by entering a
+        // subfolder and pressing ⌘⇧↑).
+        let rows = viewModel.visibleEntries.filter { !$0.isParentLink }
         guard !rows.isEmpty else { return }
         let currentIndex: Int
-        if let anchor = selectionAnchor, let index = rows.firstIndex(where: { $0.id == anchor }) {
+        if let focused = focusedID, let index = rows.firstIndex(where: { $0.id == focused }) {
+            currentIndex = index
+        } else if let anchor = selectionAnchor, let index = rows.firstIndex(where: { $0.id == anchor }) {
             currentIndex = index
         } else if let selected = selection.first, let index = rows.firstIndex(where: { $0.id == selected }) {
             currentIndex = index
@@ -194,12 +219,33 @@ struct FileListView: View {
         }
         let newIndex = min(max(currentIndex + delta, 0), rows.count - 1)
         let newEntry = rows[newIndex]
+        focusedID = newEntry.id
         if extend, let anchor = selectionAnchor, let anchorIndex = rows.firstIndex(where: { $0.id == anchor }) {
             selection = Self.selectRange(from: anchorIndex, to: newIndex, in: rows)
         } else {
             selection = [newEntry.id]
             selectionAnchor = newEntry.id
         }
+    }
+
+    /// ⌘⇧↓ / ⌘⇧↑ — Finder's own "extend selection to the last/first item"
+    /// shortcut. Like plain Shift-arrow, this grows the range from
+    /// `selectionAnchor`, but jumps straight to the edge instead of moving
+    /// one row at a time.
+    private func extendSelectionToEdge(last: Bool) {
+        // Same exclusion as `moveSelection` — ".." is never a selectable item.
+        let rows = viewModel.visibleEntries.filter { !$0.isParentLink }
+        guard !rows.isEmpty else { return }
+        let edgeEntry = last ? rows[rows.count - 1] : rows[0]
+        let anchor = selectionAnchor ?? focusedID ?? selection.first ?? edgeEntry.id
+        if selectionAnchor == nil { selectionAnchor = anchor }
+        focusedID = edgeEntry.id
+        guard let anchorIndex = rows.firstIndex(where: { $0.id == anchor }) else {
+            selection = [edgeEntry.id]
+            return
+        }
+        let edgeIndex = last ? rows.count - 1 : 0
+        selection = Self.selectRange(from: anchorIndex, to: edgeIndex, in: rows)
     }
 
     /// Builds a contiguous-range selection between two row indices (inclusive
@@ -263,6 +309,7 @@ struct FileListView: View {
             return
         }
 
+        focusedID = entry.id
         guard let event = NSApp.currentEvent else {
             selection = [entry.id]
             selectionAnchor = entry.id
