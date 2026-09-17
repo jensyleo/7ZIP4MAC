@@ -295,7 +295,14 @@ public final class ArchiveViewModel {
         } else if flattenPaths {
             revealTargets = selectedPaths.map { destination.appendingPathComponent(($0 as NSString).lastPathComponent) }
         } else {
-            revealTargets = selectedPaths.map { destination.appendingPathComponent($0) }
+            // `selectedPaths` are entry names from inside the archive, not
+            // necessarily trustworthy — a crafted "../../etc/passwd" would
+            // otherwise make Finder reveal a location outside `destination`
+            // (found in security audit, 2026-09-17). 7-Zip itself sanitizes
+            // ".."/"." out of the real extraction path, so this mirrors that
+            // to keep pointing Finder at where the actual extracted file
+            // ends up, rather than trusting the raw entry name.
+            revealTargets = selectedPaths.map { destination.appendingPathComponent(Self.sanitizedRelativePath($0)) }
         }
 
         extractTask = Task { [serviceProvider] in
@@ -608,6 +615,14 @@ public final class ArchiveViewModel {
     /// Whether `path` already names an entry in `entries` — trailing slashes
     /// (how folders are stored) normalized away so a file and a
     /// same-named folder are still correctly seen as a collision.
+    /// Strips ".."/"." components from an archive entry's path — used only
+    /// to guess where 7-Zip's own extraction (which does the same
+    /// sanitizing for real) will have put a file, never to read/write
+    /// anything itself. See the `revealTargets` call site.
+    private static func sanitizedRelativePath(_ path: String) -> String {
+        path.split(separator: "/").filter { $0 != ".." && $0 != "." && !$0.isEmpty }.joined(separator: "/")
+    }
+
     private static func pathExists(_ path: String, in entries: [ArchiveEntry]) -> Bool {
         let normalized = path.hasSuffix("/") ? String(path.dropLast()) : path
         return entries.contains { entry in

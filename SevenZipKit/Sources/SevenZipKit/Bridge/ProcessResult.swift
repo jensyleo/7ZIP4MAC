@@ -22,4 +22,11 @@ public struct ProcessResult: Sendable {
     public var errorString: String {
         String(decoding: standardError, as: UTF8.self)
     }
+
+    /// The best available description of what went wrong: 7-Zip's own error
+    /// output, or its regular output when it didn't write anything to
+    /// stderr (some failures are only reported there).
+    public var diagnosticMessage: String {
+        errorString.isEmpty ? outputString : errorString
+    }
 }
