@@ -85,7 +85,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
 
         // Exit codes: 0 = OK, 1 = warning (still usable), >= 2 = fatal.
         if result.exitCode >= 2 {
-            let message = result.errorString.isEmpty ? result.outputString : result.errorString
+            let message = result.diagnosticMessage
             if Self.indicatesWrongPassword(message) {
                 ArchiveLog.service.error("Listing failed: wrong password for \(url.lastPathComponent, privacy: .public)")
                 throw ArchiveError.wrongPassword
@@ -260,7 +260,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
 
         let result = try await runner.run(arguments)
         if result.exitCode >= 2 {
-            let message = result.errorString.isEmpty ? result.outputString : result.errorString
+            let message = result.diagnosticMessage
             ArchiveLog.service.error("Benchmark failed (code \(result.exitCode))")
             throw ArchiveError.operationFailed(
                 code: result.exitCode,
@@ -285,7 +285,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         let result = try await runner.run(arguments)
 
         if result.exitCode >= 2 {
-            let message = result.errorString.isEmpty ? result.outputString : result.errorString
+            let message = result.diagnosticMessage
             if Self.indicatesWrongPassword(message) { throw ArchiveError.wrongPassword }
             ArchiveLog.service.error("Test failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
             return false
@@ -314,7 +314,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         let result = try await runner.run(arguments)
 
         if result.exitCode >= 2 {
-            let message = result.errorString.isEmpty ? result.outputString : result.errorString
+            let message = result.diagnosticMessage
             if Self.indicatesWrongPassword(message) { throw ArchiveError.wrongPassword }
             ArchiveLog.service.error("Delete failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
             throw ArchiveError.operationFailed(
@@ -338,7 +338,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         let result = try await runner.run(arguments)
 
         if result.exitCode >= 2 {
-            let message = result.errorString.isEmpty ? result.outputString : result.errorString
+            let message = result.diagnosticMessage
             if Self.indicatesWrongPassword(message) { throw ArchiveError.wrongPassword }
             ArchiveLog.service.error("Rename failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
             throw ArchiveError.operationFailed(
