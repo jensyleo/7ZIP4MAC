@@ -70,22 +70,48 @@ enum DragOut {
             overwritePolicy: .overwrite
         )
         try await service.extract(request) { _ in }
+        return try locateExtractedItem(forEntryPath: entryPath, in: temp)
+    }
 
-        // Deliberately *not* `temp.appending(path: entryPath)`: `entryPath`
-        // is an untrusted string from inside a possibly-malicious archive,
-        // and a name like "../../../../Users/me/.ssh/id_rsa" would resolve
-        // outside `temp` to a real file on disk — which `MultiItemDragTrigger`
-        // and the cross-archive drop path then *move*, silently relocating
-        // or exfiltrating whatever that traversal landed on (found in
-        // security audit, 2026-09-16). 7-Zip itself never writes outside
-        // `temp` — it sanitizes `../` on extraction — so the single item it
-        // actually wrote there is always the real, safe result, the same
-        // pattern `ArchiveService`'s tar-unwrap already relies on.
-        let items = try FileManager.default.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil)
-        guard let extracted = items.first, items.count == 1 else {
-            throw ArchiveError.operationFailed(code: -1, message: "Extraction did not produce the expected single item.")
+    /// Finds the item 7-Zip actually extracted for `entryPath` inside `root`,
+    /// without ever building a filesystem path by concatenating `entryPath`
+    /// itself: that's an untrusted string from inside a possibly-malicious
+    /// archive, and a name like "../../../../Users/me/.ssh/id_rsa" would
+    /// resolve outside `root` to a real file on disk — which callers then
+    /// *move*, silently relocating or exfiltrating whatever that traversal
+    /// landed on (found in security audit, 2026-09-16).
+    ///
+    /// Instead this walks the real directories 7-Zip wrote under `root`, one
+    /// level per path component of `entryPath`, requiring each ancestor to
+    /// have exactly one child before descending into it. A malicious
+    /// `entryPath` can't steer this anywhere unsafe: 7-Zip sanitizes `../`
+    /// itself, so everything under `root` is already confined there, and
+    /// this only ever *counts* `entryPath`'s components (to know how many
+    /// levels an entry like "docs/reports/file.pdf" should nest) — never
+    /// their content. Not comparing each level's name against the expected
+    /// component too: entry names round-tripped through the archive can
+    /// differ in Unicode normalization from what 7-Zip writes to an APFS
+    /// volume, which would otherwise fail a perfectly legitimate extraction.
+    ///
+    /// Fixes a regression from that same audit fix, which returned `root`'s
+    /// *only top-level* item — the first path component's directory — for
+    /// any nested entry, dragging out the whole ancestor folder chain
+    /// instead of the file itself ("se trae toda la ruta de directorios,
+    /// los crea en vez de dejarlo donde yo le digo" — 2026-09-17). Shared
+    /// with `ArchiveViewModel.copyEntry`, which extracts a single entry into
+    /// a scratch folder the same way and has the same nesting problem.
+    static func locateExtractedItem(forEntryPath entryPath: String, in root: URL) throws -> URL {
+        let trimmed = entryPath.hasSuffix("/") ? String(entryPath.dropLast()) : entryPath
+        let depth = trimmed.split(separator: "/").count
+        var current = root
+        for _ in 0..<max(depth, 1) {
+            let children = try FileManager.default.contentsOfDirectory(at: current, includingPropertiesForKeys: nil)
+            guard let onlyChild = children.first, children.count == 1 else {
+                throw ArchiveError.operationFailed(code: -1, message: "Extraction did not produce the expected single item.")
+            }
+            current = onlyChild
         }
-        return extracted
+        return current
     }
 
     /// Deletes staging folders left over from previous drags. Call once at app
