@@ -83,7 +83,16 @@ struct ArchiveWindowRoot: View {
                 // windows exist at that exact instant.
                 let isFirstWindowThisLaunch = !WindowLaunchTracker.hasShownAnyWindow
                 WindowLaunchTracker.hasShownAnyWindow = true
-                if archiveURL == nil, !isFirstWindowThisLaunch {
+                // Being first doesn't make this legitimate when the app was
+                // launched specifically to open a file (`AppDelegate` sets
+                // this before SwiftUI ever creates this window): that real
+                // archive window is on its way regardless of window order,
+                // so an empty one showing up "first" here is still a
+                // scaffold, not the normal single-window-on-plain-launch
+                // case ("la app se abre 2 veces" — 2026-09-17).
+                let isOrphanCandidate = archiveURL == nil
+                    && (!isFirstWindowThisLaunch || AppDelegate.isOpeningFileAtLaunch)
+                if isOrphanCandidate {
                     window.orderOut(nil)
                     isHiddenPendingOrphanCheck = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

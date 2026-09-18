@@ -159,11 +159,14 @@ public struct SystemSevenZipBridge: SevenZipBridge {
             if Self.indicatesUnsupportedFormat(message) {
                 throw ArchiveError.unsupportedFormat
             }
-            ArchiveLog.service.error("Extraction failed (code \(exitCode)) for \(request.archiveURL.lastPathComponent, privacy: .public)")
-            throw ArchiveError.operationFailed(
-                code: exitCode,
-                message: message.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
+            if !Self.indicatesOnlySkippedDangerousLinks(message) {
+                ArchiveLog.service.error("Extraction failed (code \(exitCode)) for \(request.archiveURL.lastPathComponent, privacy: .public)")
+                throw ArchiveError.operationFailed(
+                    code: exitCode,
+                    message: message.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+            ArchiveLog.service.error("Extraction skipped unsafe symlink(s) for \(request.archiveURL.lastPathComponent, privacy: .public): \(message.trimmingCharacters(in: .whitespacesAndNewlines), privacy: .public)")
         }
 
         // Ensure the UI ends at 100%.
@@ -361,5 +364,26 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         return lowered.contains("cannot open the file as archive")
             || lowered.contains("is not supported archive")
             || lowered.contains("unsupported")
+    }
+
+    /// True when every error line is 7-Zip refusing to recreate a symlink
+    /// that chains through another symlink — its own defense against a
+    /// malicious "zip slip" (an entry whose target, followed through a
+    /// second link, would land outside the extraction folder). It reports
+    /// this at the same fatal exit code (2) as a genuinely broken archive,
+    /// but real macOS `.app` bundles routinely contain exactly this shape
+    /// completely legitimately (an inner `.framework`'s
+    /// `Versions/Current/Foo` pointing through `Versions/Current`, itself a
+    /// symlink) — treating it as fatal made extracting/dragging out any such
+    /// bundle fail outright, extracting nothing at all, when what actually
+    /// happened is 7-Zip already refused to write the couple of unsafe links
+    /// and extracted everything else fine ("la carpeta con la extensión
+    /// .app sigue sin permitirme descomprimirla" — 2026-09-18). Since 7-Zip
+    /// itself never writes the dangerous link either way, treating this as
+    /// non-fatal doesn't reopen the traversal it's guarding against.
+    private static func indicatesOnlySkippedDangerousLinks(_ message: String) -> Bool {
+        let lines = message.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return false }
+        return lines.allSatisfy { $0.lowercased().contains("dangerous link") }
     }
 }
