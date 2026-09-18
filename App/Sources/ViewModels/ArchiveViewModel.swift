@@ -380,15 +380,8 @@ public final class ArchiveViewModel {
     /// Message from the last add/delete/move/copy, shown in an alert.
     public private(set) var editMessage: String?
 
-    /// Adds files/folders into the archive under the folder currently being
-    /// browsed (appends via `compress`, which is `7zz a` — an append/update
-    /// when the destination archive already exists) and refreshes the listing.
-    ///
-    /// To land items under `currentFolder` rather than always at the
-    /// archive's root, each source is staged into a scratch folder that
-    /// mirrors `currentFolder`'s path before compressing — `7zz a` has no
-    /// "add under this internal path" option; it only takes the archive path
-    /// from the source's own path relative to the working directory.
+    /// Adds files/folders into the archive — see ``addFilesCore(_:)`` for how
+    /// — reporting the outcome via `editMessage` instead of throwing.
     public func addFiles(_ sources: [URL], notifySuccess: Bool = true) {
         guard !sources.isEmpty else { return }
         Task {
