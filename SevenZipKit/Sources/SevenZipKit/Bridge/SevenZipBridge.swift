@@ -315,16 +315,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         arguments.append("--")
         arguments.append(contentsOf: paths)
         let result = try await runner.run(arguments)
-
-        if result.exitCode >= 2 {
-            let message = result.diagnosticMessage
-            if Self.indicatesWrongPassword(message) { throw ArchiveError.wrongPassword }
-            ArchiveLog.service.error("Delete failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
-            throw ArchiveError.operationFailed(
-                code: result.exitCode,
-                message: message.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        }
+        try Self.throwIfFatal(result, operation: "Delete", url: url)
         ArchiveLog.service.info("Delete finished for \(url.lastPathComponent, privacy: .public)")
     }
 
@@ -339,20 +330,29 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         arguments.append("--")
         arguments.append(contentsOf: [oldPath, newPath])
         let result = try await runner.run(arguments)
-
-        if result.exitCode >= 2 {
-            let message = result.diagnosticMessage
-            if Self.indicatesWrongPassword(message) { throw ArchiveError.wrongPassword }
-            ArchiveLog.service.error("Rename failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
-            throw ArchiveError.operationFailed(
-                code: result.exitCode,
-                message: message.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        }
+        try Self.throwIfFatal(result, operation: "Rename", url: url)
         ArchiveLog.service.info("Rename finished for \(url.lastPathComponent, privacy: .public)")
     }
 
     // MARK: - Error classification
+
+    /// The shared tail of `delete`/`rename`: both only ever special-case a
+    /// wrong password, otherwise surfacing the exit code and 7-Zip's own
+    /// message as-is. `list`/`extract`/`test`/`compress` each check
+    /// different things (unsupported format, skipped-symlink tolerance, a
+    /// non-throwing `false` return) and stay written out in full rather than
+    /// forced through this too, to avoid this helper growing flags for
+    /// behavior that only one caller needs.
+    private static func throwIfFatal(_ result: ProcessResult, operation: String, url: URL) throws {
+        guard result.exitCode >= 2 else { return }
+        let message = result.diagnosticMessage
+        if Self.indicatesWrongPassword(message) { throw ArchiveError.wrongPassword }
+        ArchiveLog.service.error("\(operation, privacy: .public) failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
+        throw ArchiveError.operationFailed(
+            code: result.exitCode,
+            message: message.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
 
     private static func indicatesWrongPassword(_ message: String) -> Bool {
         let lowered = message.lowercased()
@@ -384,6 +384,12 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     private static func indicatesOnlySkippedDangerousLinks(_ message: String) -> Bool {
         let lines = message.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard !lines.isEmpty else { return false }
-        return lines.allSatisfy { $0.lowercased().contains("dangerous link") }
+        // Anchored to the fixed prefix 7-Zip itself emits for this specific
+        // warning, not a bare `.contains("dangerous link")` anywhere in the
+        // line — the rest of the line (the entry's own path/target) comes
+        // straight from the archive, so a `.contains` check could be made to
+        // match a genuinely different, real failure just by naming an entry
+        // "dangerous link.txt" (found in security audit, 2026-09-18).
+        return lines.allSatisfy { $0.lowercased().hasPrefix("error: dangerous link") }
     }
 }

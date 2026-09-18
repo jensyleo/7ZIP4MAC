@@ -62,6 +62,43 @@ public struct SevenZipRunner: Sendable {
         self.executable = executable
     }
 
+    /// The setup shared by `run()` and `stream()`: a `Process` wired to the
+    /// engine with stdin disabled (never let it wait on an interactive
+    /// password prompt; everything is passed via arguments) and both pipes
+    /// attached, plus a background thread ready to drain stderr into
+    /// `errorBox` — started only once the caller has confirmed the process
+    /// actually launched. Doesn't call `process.run()` itself, since `run()`
+    /// and `stream()` each need to react to a launch failure differently
+    /// (one resumes a continuation directly, the other also owns a
+    /// `ProcessBox` for cancellation).
+    private static func makeProcess(
+        _ arguments: [String],
+        executableURL: URL,
+        workingDirectory: URL?
+    ) -> (process: Process, outputPipe: Pipe, errorBox: DataBox, errorDone: DispatchSemaphore, errorThread: Thread) {
+        let process = Process()
+        process.executableURL = executableURL
+        process.arguments = arguments
+        if let workingDirectory {
+            process.currentDirectoryURL = workingDirectory
+        }
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        process.standardInput = FileHandle.nullDevice
+
+        let errorBox = DataBox()
+        let errorDone = DispatchSemaphore(value: 0)
+        let errorHandle = errorPipe.fileHandleForReading
+        let errorThread = Thread {
+            errorBox.append(errorHandle.readDataToEndOfFile())
+            errorDone.signal()
+        }
+        return (process, outputPipe, errorBox, errorDone, errorThread)
+    }
+
     /// Runs `7zz` with the given arguments and returns once it exits.
     ///
     /// Standard output and standard error are drained concurrently so that a
@@ -74,26 +111,9 @@ public struct SevenZipRunner: Sendable {
         let executableURL = executable.url
         return try await withCheckedThrowingContinuation { continuation in
             Thread.detachNewThread {
-                let process = Process()
-                process.executableURL = executableURL
-                process.arguments = arguments
-
-                let outputPipe = Pipe()
-                let errorPipe = Pipe()
-                process.standardOutput = outputPipe
-                process.standardError = errorPipe
-                // Never let the engine wait on interactive stdin (e.g. a
-                // password prompt); we pass everything via arguments.
-                process.standardInput = FileHandle.nullDevice
-
-                // Drain stderr on its own thread while we drain stdout here.
-                let errorBox = DataBox()
-                let errorDone = DispatchSemaphore(value: 0)
-                let errorHandle = errorPipe.fileHandleForReading
-                let errorThread = Thread {
-                    errorBox.append(errorHandle.readDataToEndOfFile())
-                    errorDone.signal()
-                }
+                let (process, outputPipe, errorBox, errorDone, errorThread) = Self.makeProcess(
+                    arguments, executableURL: executableURL, workingDirectory: nil
+                )
 
                 do {
                     try process.run()
@@ -143,26 +163,9 @@ public struct SevenZipRunner: Sendable {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 Thread.detachNewThread {
-                    let process = Process()
-                    process.executableURL = executableURL
-                    process.arguments = arguments
-                    if let workingDirectory {
-                        process.currentDirectoryURL = workingDirectory
-                    }
-
-                    let outputPipe = Pipe()
-                    let errorPipe = Pipe()
-                    process.standardOutput = outputPipe
-                    process.standardError = errorPipe
-                    process.standardInput = FileHandle.nullDevice
-
-                    let errorBox = DataBox()
-                    let errorDone = DispatchSemaphore(value: 0)
-                    let errorHandle = errorPipe.fileHandleForReading
-                    let errorThread = Thread {
-                        errorBox.append(errorHandle.readDataToEndOfFile())
-                        errorDone.signal()
-                    }
+                    let (process, outputPipe, errorBox, errorDone, errorThread) = Self.makeProcess(
+                        arguments, executableURL: executableURL, workingDirectory: workingDirectory
+                    )
 
                     do {
                         try process.run()

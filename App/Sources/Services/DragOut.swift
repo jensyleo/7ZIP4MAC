@@ -70,7 +70,36 @@ enum DragOut {
             overwritePolicy: .overwrite
         )
         try await service.extract(request) { _ in }
-        return try locateExtractedItem(forEntryPath: entryPath, in: temp)
+        let extracted = try locateExtractedItem(forEntryPath: entryPath, in: temp)
+        try Self.rejectSymlinkEscapingScratch(extracted, scratch: temp)
+        return extracted
+    }
+
+    /// Refuses an extracted item that's a symlink pointing outside `scratch`
+    /// — 7-Zip recreates a symlink entry's target verbatim, and that target
+    /// is just as untrusted as the entry's own name. Unlike a crafted
+    /// *name* (already handled by never building paths from `entryPath`),
+    /// a crafted *target* like "/Users/me/.ssh/id_rsa" is the resolved
+    /// result the OS itself will follow the moment anything reads through
+    /// this link — most immediately Quick Look, which `DragOut.extract`
+    /// also feeds: pressing Space on an entry that looks like an innocuous
+    /// file would silently render the real target file's content instead
+    /// (found in security audit, 2026-09-18). A symlink whose target
+    /// resolves *inside* `scratch` (pointing at another file 7-Zip also
+    /// just extracted) is harmless and left alone.
+    private static func rejectSymlinkEscapingScratch(_ url: URL, scratch: URL) throws {
+        guard let target = try? FileManager.default.destinationOfSymbolicLink(atPath: url.path) else {
+            return
+        }
+        let resolvedTarget = URL(fileURLWithPath: target, relativeTo: url.deletingLastPathComponent())
+            .standardizedFileURL
+        let scratchPath = scratch.standardizedFileURL.path
+        guard resolvedTarget.path == scratchPath || resolvedTarget.path.hasPrefix(scratchPath + "/") else {
+            throw ArchiveError.operationFailed(
+                code: -1,
+                message: "This entry is a symbolic link pointing outside the archive's extracted contents and can't be opened this way."
+            )
+        }
     }
 
     /// Finds the item 7-Zip actually extracted for `entryPath` inside `root`,
