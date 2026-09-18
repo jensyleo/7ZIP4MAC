@@ -135,10 +135,26 @@ enum DragOut {
     }
 
     static func typeIdentifier(for entry: ArchiveEntry) -> String {
+        let ext = (entry.name as NSString).pathExtension
         if entry.isDirectory {
+            // A directory whose name is a known package extension (.app,
+            // .bundle, .framework, …) needs that real UTI declared, not a
+            // generic "public.folder": Finder silently refused the drop
+            // entirely for one of these when it was promised as a plain
+            // folder while ending in ".app" — no error, the drag just did
+            // nothing ("con un archivo y carpeta funciona bien, pero con una
+            // carpeta con extensión .app no pasa nada" — 2026-09-17).
+            // `conformingTo: .package` synthesizes a placeholder "dyn.*"
+            // identifier for any extension it doesn't actually recognize as
+            // a package type — never nil — so that has to be filtered back
+            // out, or *every* folder with a dot in its name (a plain folder
+            // named "notes.2024", say) would wrongly take this branch too.
+            if !ext.isEmpty, let type = UTType(filenameExtension: ext, conformingTo: .package),
+               !type.identifier.hasPrefix("dyn.") {
+                return type.identifier
+            }
             return UTType.folder.identifier
         }
-        let ext = (entry.name as NSString).pathExtension
         if !ext.isEmpty, let type = UTType(filenameExtension: ext), !type.conforms(to: .text) {
             return type.identifier
         }
