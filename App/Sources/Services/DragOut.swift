@@ -52,11 +52,9 @@ enum DragOut {
     static func extract(
         entryPath: String,
         archiveURL: URL,
-        password: String?,
-        progress: @escaping @Sendable (ProgressInfo) -> Void = { _ in }
+        password: String?
     ) async throws -> URL {
-        let viewModel = OpenArchiveWindowRegistry.viewModel(for: archiveURL)
-        let effectiveURL = viewModel?.effectiveArchiveURL ?? archiveURL
+        let effectiveURL = OpenArchiveWindowRegistry.viewModel(for: archiveURL)?.effectiveArchiveURL ?? archiveURL
         let executable = try BundledEngine.resolve()
         let service = ArchiveService(executable: executable)
 
@@ -69,25 +67,12 @@ enum DragOut {
             destinationURL: temp,
             password: password,
             selectedPaths: [entryPath],
-            overwritePolicy: .overwrite,
-            totalUncompressedSize: Self.uncompressedSize(forEntryPath: entryPath, in: viewModel?.entries ?? [])
+            overwritePolicy: .overwrite
         )
-        try await service.extract(request, progress: progress)
+        try await service.extract(request) { _ in }
         let extracted = try locateExtractedItem(forEntryPath: entryPath, in: temp)
         try Self.rejectSymlinkEscapingScratch(extracted, scratch: temp)
         return extracted
-    }
-
-    /// Sums the uncompressed size of `entryPath` — itself if it's a file, or
-    /// everything under it if it's a folder — so the extraction this drives
-    /// can report a real percentage/ETA instead of an indeterminate one.
-    /// `entries` comes from the source window's already-loaded listing, not
-    /// a fresh read, so this is just arithmetic over what's already in memory.
-    private static func uncompressedSize(forEntryPath entryPath: String, in entries: [ArchiveEntry]) -> UInt64 {
-        let prefix = entryPath + "/"
-        return entries.lazy
-            .filter { !$0.isDirectory && ($0.path == entryPath || $0.path.hasPrefix(prefix)) }
-            .reduce(0) { $0 + $1.size }
     }
 
     /// Refuses an extracted item that's a symlink pointing outside `scratch`
