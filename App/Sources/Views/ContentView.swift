@@ -94,6 +94,15 @@ struct ContentView: View {
                 )
             }
         }
+        .sheet(isPresented: editProgressSheetPresented) {
+            if let progress = viewModel.editProgress {
+                ProgressPanelView(
+                    title: "Updating \(viewModel.archiveURL?.lastPathComponent ?? "archive")",
+                    progress: progress,
+                    onCancel: viewModel.cancelEdit
+                )
+            }
+        }
         .alert("Extraction Complete", isPresented: extractionFinishedPresented, presenting: finishedDestination) { destination in
             Button("Show in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting(finishedRevealTargets)
@@ -268,6 +277,10 @@ struct ContentView: View {
 
     private var extractionSheetPresented: Binding<Bool> {
         Binding(get: { viewModel.isExtracting }, set: { if !$0 { viewModel.cancelExtraction() } })
+    }
+
+    private var editProgressSheetPresented: Binding<Bool> {
+        Binding(get: { viewModel.editProgress != nil }, set: { if !$0 { viewModel.cancelEdit() } })
     }
 
     // Always shown when files were skipped or renamed instead of overwritten
