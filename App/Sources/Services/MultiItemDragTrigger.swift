@@ -73,11 +73,27 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         let entryPath = entryPath
         let archiveURL = archiveURL
         let password = password
+        // A drag-out has no window of ours visibly focused to show our own
+        // progress panel in — the user's mouse is over Finder — so instead
+        // of that, this publishes a `Progress` the way Finder itself expects
+        // file-promise operations to report themselves: Finder discovers it
+        // and shows it in its own copy-progress UI, the same as it would for
+        // e.g. an AirDrop or Photos export landing via a promise. Without
+        // this, extracting a large entry via drag showed literally no
+        // feedback anywhere ("no aparece nada, ni un instante" — 2026-09-21).
+        let progress = Progress(totalUnitCount: 100)
+        progress.kind = .file
+        progress.fileOperationKind = .copying
+        progress.fileURL = url
+        progress.publish()
         Task {
+            defer { progress.unpublish() }
             do {
                 let extractedURL = try await DragOut.extract(
                     entryPath: entryPath, archiveURL: archiveURL, password: password
-                )
+                ) { info in
+                    progress.completedUnitCount = Int64((info.fractionCompleted * 100).rounded())
+                }
                 if FileManager.default.fileExists(atPath: url.path) {
                     try FileManager.default.removeItem(at: url)
                 }
