@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0108922640AD3F6564D60974 /* EntryRowStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19245B70004DBB9CB6279E4 /* EntryRowStatus.swift */; };
+		05A4B6958024152E82E5BC3B /* DragProgressPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 611E885688720221480CE83A /* DragProgressPanel.swift */; };
 		077839F48EFE6DE219C8A605 /* BundledEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D479DBA0B8DAEC0F4A7C74 /* BundledEngine.swift */; };
 		0A04A8B6D63F527CC28ED79A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2033E4B3E40CB4079AC3B4E /* AppSettings.swift */; };
 		0A065972293A7E0F81DA42C5 /* Uninstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F78946EFCA0922C92685D8E /* Uninstaller.swift */; };
@@ -117,6 +118,7 @@
 		451A5898DCAF44B3924C4007 /* nsis.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = nsis.icns; sourceTree = "<group>"; };
 		477A45A3EC2EC6C4EB6882E1 /* OpenArchiveWindowRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenArchiveWindowRegistry.swift; sourceTree = "<group>"; };
 		5B7823ED623BF68AEB7AD010 /* bz2.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = bz2.icns; sourceTree = "<group>"; };
+		611E885688720221480CE83A /* DragProgressPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragProgressPanel.swift; sourceTree = "<group>"; };
 		6143165F2E3270E00BFD9EDF /* Error+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+Display.swift"; sourceTree = "<group>"; };
 		6A6A03985870DE2A4D1B3B75 /* dmg.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = dmg.icns; sourceTree = "<group>"; };
 		6B1C6F8B683CDF7CB67D4FEB /* cpio.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = cpio.icns; sourceTree = "<group>"; };
@@ -350,6 +352,7 @@
 				E2F5A0571F39D2009576955B /* AutomationService.swift */,
 				B8D479DBA0B8DAEC0F4A7C74 /* BundledEngine.swift */,
 				7D2001126EBDA2E2C61E0B03 /* DragOut.swift */,
+				611E885688720221480CE83A /* DragProgressPanel.swift */,
 				6E01E9EBBBE38370F1EDE334 /* FileAssociationService.swift */,
 				395179BB8D9139E53BADF516 /* MultiItemDragTrigger.swift */,
 			);
@@ -511,6 +514,7 @@
 				B0A1D211B9E8AB55AA847032 /* ContentView.swift in Sources */,
 				601B42E135C63E4B28C15B0D /* CrossArchiveDropTarget.swift in Sources */,
 				614ACFE913ED77A433649429 /* DragOut.swift in Sources */,
+				05A4B6958024152E82E5BC3B /* DragProgressPanel.swift in Sources */,
 				D5B16D0F6ADBFF8FE6875F52 /* EmptyStateView.swift in Sources */,
 				28E2B77AEFA2A1246374FE3A /* EntryIcon.swift in Sources */,
 				0108922640AD3F6564D60974 /* EntryRowStatus.swift in Sources */,
@@ -618,7 +622,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.23;
+				MARKETING_VERSION = 1.7.25;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
@@ -708,7 +712,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.23;
+				MARKETING_VERSION = 1.7.25;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;

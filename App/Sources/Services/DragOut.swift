@@ -52,9 +52,11 @@ enum DragOut {
     static func extract(
         entryPath: String,
         archiveURL: URL,
-        password: String?
+        password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void = { _ in }
     ) async throws -> URL {
-        let effectiveURL = OpenArchiveWindowRegistry.viewModel(for: archiveURL)?.effectiveArchiveURL ?? archiveURL
+        let viewModel = OpenArchiveWindowRegistry.viewModel(for: archiveURL)
+        let effectiveURL = viewModel?.effectiveArchiveURL ?? archiveURL
         let executable = try BundledEngine.resolve()
         let service = ArchiveService(executable: executable)
 
@@ -67,12 +69,109 @@ enum DragOut {
             destinationURL: temp,
             password: password,
             selectedPaths: [entryPath],
-            overwritePolicy: .overwrite
+            overwritePolicy: .overwrite,
+            totalUncompressedSize: Self.uncompressedSize(forEntryPath: entryPath, in: viewModel?.entries ?? [])
         )
-        try await service.extract(request) { _ in }
+        try await service.extract(request, progress: progress)
         let extracted = try locateExtractedItem(forEntryPath: entryPath, in: temp)
         try Self.rejectSymlinkEscapingScratch(extracted, scratch: temp)
         return extracted
+    }
+
+    /// Sums the uncompressed size of `entryPath` — itself if it's a file, or
+    /// everything under it if it's a folder — so the extraction this drives
+    /// can report a real percentage/ETA instead of an indeterminate one.
+    /// `entries` comes from the source window's already-loaded listing, not
+    /// a fresh read, so this is just arithmetic over what's already in memory.
+    private static func uncompressedSize(forEntryPath entryPath: String, in entries: [ArchiveEntry]) -> UInt64 {
+        let prefix = entryPath + "/"
+        return entries.lazy
+            .filter { !$0.isDirectory && ($0.path == entryPath || $0.path.hasPrefix(prefix)) }
+            .reduce(0) { $0 + $1.size }
+    }
+
+    /// Moves `source` (inside our own scratch directory) to `destination`
+    /// (the promise's real, Finder-chosen URL), reporting real progress —
+    /// unlike a bare `FileManager.moveItem`, which is silent and, within a
+    /// single volume, an instant metadata-only rename anyway (so there's
+    /// nothing to show progress *for* in that common case: `progress(1)`
+    /// fires essentially immediately, which is simply the truth, not a bug).
+    /// Crossing volumes (an external drive, a network share) is where a move
+    /// is actually a real byte-for-byte copy that can take real time —
+    /// that's the case this reports on incrementally, by polling how much
+    /// `FileManager.copyItem` has written so far rather than reimplementing
+    /// file I/O by hand (still using Foundation's own, already-correct
+    /// copy for directories/symlinks/permissions/resource forks).
+    static func moveWithProgress(
+        from source: URL,
+        to destination: URL,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws {
+        guard !Self.isSameVolume(source, destination) else {
+            try FileManager.default.moveItem(at: source, to: destination)
+            progress(1)
+            return
+        }
+        let total = Self.totalSize(of: source)
+        guard total > 0 else {
+            try FileManager.default.copyItem(at: source, to: destination)
+            try? FileManager.default.removeItem(at: source)
+            progress(1)
+            return
+        }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try FileManager.default.copyItem(at: source, to: destination)
+            }
+            group.addTask {
+                while !Task.isCancelled {
+                    try await Task.sleep(nanoseconds: 150_000_000)
+                    let copied = Self.totalSize(of: destination)
+                    progress(min(0.99, Double(copied) / Double(total)))
+                }
+            }
+            try await group.next()  // the copy task, in practice — the poller never finishes on its own
+            group.cancelAll()
+        }
+        progress(1)
+        try? FileManager.default.removeItem(at: source)
+    }
+
+    /// Whether `source` and the folder `destination` will land in are on the
+    /// same volume — `destination` itself may not exist yet (it's the
+    /// promise's target path), so this checks its *parent* instead. Errors
+    /// (an unreadable volume identifier) are treated as "different volumes",
+    /// the safer assumption: it only costs a redundant copy+delete instead
+    /// of silently skipping real progress reporting that was needed.
+    private static func isSameVolume(_ source: URL, _ destination: URL) -> Bool {
+        guard
+            let sourceID = try? source.resourceValues(forKeys: [.volumeIdentifierKey]).volumeIdentifier as? AnyHashable,
+            let destID = try? destination.deletingLastPathComponent()
+                .resourceValues(forKeys: [.volumeIdentifierKey]).volumeIdentifier as? AnyHashable
+        else { return false }
+        return sourceID == destID
+    }
+
+    /// Recursively sums the byte size of `url` (itself if a file, everything
+    /// under it if a folder) — used both to size `moveWithProgress`'s total
+    /// and, while a cross-volume copy is running, to poll how much of
+    /// `destination` has been written so far.
+    private static func totalSize(of url: URL) -> UInt64 {
+        let fm = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard fm.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return 0 }
+        if isDirectory.boolValue {
+            var total: UInt64 = 0
+            let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey])
+            while let child = enumerator?.nextObject() as? URL {
+                let values = try? child.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+                if values?.isRegularFile == true {
+                    total += UInt64(values?.fileSize ?? 0)
+                }
+            }
+            return total
+        }
+        return UInt64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
     }
 
     /// Refuses an extracted item that's a symlink pointing outside `scratch`
