@@ -14,7 +14,7 @@ final class DragTransferState {
         case extracting
         case moving
     }
-    let itemName: String
+    var itemName: String
     var phase: Phase = .extracting
     var progress: ProgressInfo = .zero
     /// Set by the caller once the underlying `Task` exists, so the panel's
@@ -49,10 +49,17 @@ private struct DragTransferView: View {
 /// Shows the same `ProgressPanelView` Extract uses for the duration of a
 /// drag-out's promise fulfillment, in a small floating panel instead of a
 /// window sheet ("que se vea igual que el que se usa en el menú desplegable"
-/// — 2026-09-21). One panel at a time is all a single drag ever needs; a
-/// second concurrent drag gets its own instance instead of sharing this one,
-/// so multi-item drags started close together don't fight over the same
-/// window.
+/// — 2026-09-21).
+///
+/// One instance is shared across every item of the *same* `beginMultiDrag`
+/// call (see `MultiItemDragTriggerView`), reference-counted via
+/// ``beginItem(itemName:)``/``finishItem()``: Finder calls
+/// `writePromiseTo` once per selected entry, and each one used to make its
+/// own panel and steal focus independently, so a multi-item drag flashed a
+/// new activating window per item instead of one steady one (found in
+/// security/robustness audit, 2026-09-21). A *different*, separate drag
+/// still gets its own controller instance, so two unrelated drags started
+/// close together don't fight over the same window.
 ///
 /// Made key/active, not a non-activating panel: AppKit renders a
 /// `ProgressView`'s bar (and every other control) in a dimmed gray, not the
@@ -65,11 +72,23 @@ private struct DragTransferView: View {
 @MainActor
 final class DragProgressPanelController {
     private var panel: NSPanel?
+    private var state: DragTransferState?
+    private var activeCount = 0
 
-    /// Shows the panel and returns the state object driving it. Call
-    /// ``finish()`` when the transfer ends (success or failure) to close it.
-    func begin(itemName: String) -> DragTransferState {
+    /// Call once per item about to be extracted/moved. Creates and activates
+    /// the panel for the first concurrently-active item in this drag; later
+    /// items (running items 2...N of the same multi-selection drag) reuse
+    /// the same panel/state instead of spawning their own.
+    func beginItem(itemName: String) -> DragTransferState {
+        activeCount += 1
+        if let state {
+            state.itemName = itemName
+            state.phase = .extracting
+            state.progress = .zero
+            return state
+        }
         let state = DragTransferState(itemName: itemName)
+        self.state = state
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 460, height: 200),
             styleMask: [.titled, .fullSizeContentView, .utilityWindow],
@@ -91,8 +110,15 @@ final class DragProgressPanelController {
         return state
     }
 
-    func finish() {
+    /// Call once per item when its transfer ends (success or failure). Only
+    /// closes the panel once every item this controller is tracking has
+    /// finished.
+    func finishItem() {
+        activeCount -= 1
+        guard activeCount <= 0 else { return }
         panel?.close()
         panel = nil
+        state = nil
+        activeCount = 0
     }
 }

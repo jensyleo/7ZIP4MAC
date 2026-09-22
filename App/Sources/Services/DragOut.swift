@@ -133,6 +133,19 @@ enum DragOut {
             try await group.next()  // the copy task, in practice — the poller never finishes on its own
             group.cancelAll()
         }
+        // `FileManager.copyItem` above is a synchronous, uninterruptible
+        // call — cancelling this Task while it's running can't stop it
+        // mid-copy, so by the time control gets here after a Cancel click,
+        // `destination` already holds a complete copy. Leaving that in place
+        // while still reporting "cancelled" would silently duplicate the
+        // item at the drop location instead of the clean no-op a cancel
+        // should be, so it's removed here instead of being left behind
+        // (`source`, still safe in scratch, is untouched either way — swept
+        // later by `sweepStaleStaging`).
+        guard !Task.isCancelled else {
+            try? FileManager.default.removeItem(at: destination)
+            throw CancellationError()
+        }
         progress(total, total)
         try? FileManager.default.removeItem(at: source)
     }
@@ -152,26 +165,15 @@ enum DragOut {
         return sourceID == destID
     }
 
-    /// Recursively sums the byte size of `url` (itself if a file, everything
-    /// under it if a folder) — used both to size `moveWithProgress`'s total
-    /// and, while a cross-volume copy is running, to poll how much of
-    /// `destination` has been written so far.
+    /// Sums the byte size of `url` (itself if a file, everything under it if
+    /// a folder) — used both to size `moveWithProgress`'s total and, while a
+    /// cross-volume copy is running, to poll how much of `destination` has
+    /// been written so far. Thin wrapper over the shared
+    /// `FileManager.totalSize(of:)` (also used by `CompressionViewModel` and
+    /// `ArchiveViewModel`), which takes an array — this is the single-`URL`
+    /// case.
     private static func totalSize(of url: URL) -> UInt64 {
-        let fm = FileManager.default
-        var isDirectory: ObjCBool = false
-        guard fm.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return 0 }
-        if isDirectory.boolValue {
-            var total: UInt64 = 0
-            let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey])
-            while let child = enumerator?.nextObject() as? URL {
-                let values = try? child.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-                if values?.isRegularFile == true {
-                    total += UInt64(values?.fileSize ?? 0)
-                }
-            }
-            return total
-        }
-        return UInt64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        FileManager.default.totalSize(of: [url])
     }
 
     /// Refuses an extracted item that's a symlink pointing outside `scratch`

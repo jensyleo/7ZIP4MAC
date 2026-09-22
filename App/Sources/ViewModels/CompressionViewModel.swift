@@ -125,7 +125,7 @@ public final class CompressionViewModel {
             level: level,
             password: password.isEmpty ? nil : password,
             encryptFileNames: encryptFileNames,
-            totalSourceSize: Self.totalSize(of: sources),
+            totalSourceSize: FileManager.default.totalSize(of: sources),
             volumeSize: volumeSize
         )
 
@@ -149,31 +149,4 @@ public final class CompressionViewModel {
         }
     }
 
-    // MARK: - Helpers
-
-    /// Recursively sums the byte size of the given files/folders.
-    private static func totalSize(of urls: [URL]) -> UInt64 {
-        let fm = FileManager.default
-        var total: UInt64 = 0
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard fm.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            if isDirectory.boolValue {
-                let enumerator = fm.enumerator(
-                    at: url,
-                    includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]
-                )
-                while let child = enumerator?.nextObject() as? URL {
-                    let values = try? child.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-                    if values?.isRegularFile == true {
-                        total += UInt64(values?.fileSize ?? 0)
-                    }
-                }
-            } else {
-                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-                total += UInt64(size)
-            }
-        }
-        return total
-    }
 }
