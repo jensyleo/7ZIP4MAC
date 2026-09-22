@@ -622,7 +622,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.25;
+				MARKETING_VERSION = 1.7.27;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
@@ -712,7 +712,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.25;
+				MARKETING_VERSION = 1.7.27;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
