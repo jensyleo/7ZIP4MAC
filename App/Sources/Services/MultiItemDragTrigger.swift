@@ -78,10 +78,10 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         // 2026-09-21) doesn't work: Finder has nothing to show progress
         // *for* while extraction writes to our hidden scratch directory,
         // since nothing is happening yet at `url` itself. This shows our
-        // *own* floating panel instead — non-activating, so it never steals
-        // focus from Finder — reusing the exact same `ProgressPanelView`
-        // Extract's toolbar/menu action uses, one phase at a time ("que se
-        // vea igual que el que se usa en el menú desplegable" — 2026-09-21):
+        // *own* floating panel instead, reusing the exact same
+        // `ProgressPanelView` Extract's toolbar/menu action uses (see
+        // `DragProgressPanelController`'s doc comment for why it's a real
+        // key/active panel, not a non-activating one), one phase at a time:
         // extraction first, then the move into `url` (see
         // `DragOut.moveWithProgress`: an instant same-volume rename in the
         // common case, genuinely progress-worthy only crossing volumes).

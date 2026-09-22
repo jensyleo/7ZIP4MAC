@@ -47,14 +47,21 @@ private struct DragTransferView: View {
 }
 
 /// Shows the same `ProgressPanelView` Extract uses for the duration of a
-/// drag-out's promise fulfillment, but in a small floating, non-activating
-/// panel instead of a window sheet — the user's mouse is over Finder for the
-/// whole gesture, so this deliberately never becomes key/main and never
-/// steals focus ("que se vea igual que el que se usa en el menú desplegable"
+/// drag-out's promise fulfillment, in a small floating panel instead of a
+/// window sheet ("que se vea igual que el que se usa en el menú desplegable"
 /// — 2026-09-21). One panel at a time is all a single drag ever needs; a
 /// second concurrent drag gets its own instance instead of sharing this one,
 /// so multi-item drags started close together don't fight over the same
 /// window.
+///
+/// Made key/active, not a non-activating panel: AppKit renders a
+/// `ProgressView`'s bar (and every other control) in a dimmed gray, not the
+/// real accent color, in any window that isn't key — matching how Extract's
+/// own sheet looks means this panel has to actually become key too ("la
+/// barra de progreso se ve gris, no azul" — 2026-09-21). This only runs
+/// after `writePromiseTo` starts, i.e. after the drop already landed and the
+/// drag gesture itself is over — the mouse isn't held over Finder anymore at
+/// that point, so activating here doesn't interrupt anything.
 @MainActor
 final class DragProgressPanelController {
     private var panel: NSPanel?
@@ -65,7 +72,7 @@ final class DragProgressPanelController {
         let state = DragTransferState(itemName: itemName)
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 460, height: 200),
-            styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView, .utilityWindow],
+            styleMask: [.titled, .fullSizeContentView, .utilityWindow],
             backing: .buffered,
             defer: false
         )
@@ -78,7 +85,8 @@ final class DragProgressPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentView = NSHostingView(rootView: DragTransferView(state: state))
         panel.center()
-        panel.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
         self.panel = panel
         return state
     }
