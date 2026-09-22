@@ -73,31 +73,34 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         let entryPath = entryPath
         let archiveURL = archiveURL
         let password = password
-        // Tried publishing a `Progress` here so Finder's own copy-progress UI
-        // would show it — reverted (2026-09-21, "el arrastre sigue sin
-        // funcionar la barra de progreso"): it can't work as long as
-        // `DragOut.extract` writes to its own hidden scratch directory and
-        // only `moveItem`s into `url` at the very end. Finder has nothing to
-        // show progress *for* during the slow part (nothing is happening at
-        // `url` yet), and the final move is an instant same-volume rename in
-        // the common case (dragging to another folder on the same disk) —
-        // there's no slow, visible-at-`url` step for any progress API to
-        // attach to. Genuinely fixing this would mean extracting straight
-        // into `url` instead of a verified scratch copy, which is exactly
-        // the security posture `DragOut.extract` exists to enforce (path
-        // traversal / escaping-symlink checks happen before anything is
-        // trusted to land at a real destination) — not a tradeoff to make
-        // silently. Extract Selected/Extract All remain the way to see real
-        // progress on a large item.
-        Task {
+        let entryName = entryName
+        // Publishing a `Progress` for Finder's own UI to pick up (tried
+        // 2026-09-21) doesn't work: Finder has nothing to show progress
+        // *for* while extraction writes to our hidden scratch directory,
+        // since nothing is happening yet at `url` itself. This shows our
+        // *own* floating panel instead — non-activating, so it never steals
+        // focus from Finder — with one bar for that extraction and a second
+        // for the move into `url` (see `DragOut.moveWithProgress`: an
+        // instant same-volume rename in the common case, genuinely
+        // progress-worthy only crossing volumes) ("pon una barra... y otra"
+        // — 2026-09-21).
+        Task { @MainActor in
+            let panelController = DragProgressPanelController()
+            let state = panelController.begin(itemName: entryName)
+            defer { panelController.finish() }
             do {
                 let extractedURL = try await DragOut.extract(
                     entryPath: entryPath, archiveURL: archiveURL, password: password
-                )
+                ) { info in
+                    Task { @MainActor in state.extractFraction = info.fractionCompleted }
+                }
                 if FileManager.default.fileExists(atPath: url.path) {
                     try FileManager.default.removeItem(at: url)
                 }
-                try FileManager.default.moveItem(at: extractedURL, to: url)
+                state.phase = .moving
+                try await DragOut.moveWithProgress(from: extractedURL, to: url) { fraction in
+                    Task { @MainActor in state.moveFraction = fraction }
+                }
                 completionHandler(nil)
             } catch {
                 completionHandler(error)
