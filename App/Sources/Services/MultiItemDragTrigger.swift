@@ -79,27 +79,42 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         // *for* while extraction writes to our hidden scratch directory,
         // since nothing is happening yet at `url` itself. This shows our
         // *own* floating panel instead — non-activating, so it never steals
-        // focus from Finder — with one bar for that extraction and a second
-        // for the move into `url` (see `DragOut.moveWithProgress`: an
-        // instant same-volume rename in the common case, genuinely
-        // progress-worthy only crossing volumes) ("pon una barra... y otra"
-        // — 2026-09-21).
-        Task { @MainActor in
+        // focus from Finder — reusing the exact same `ProgressPanelView`
+        // Extract's toolbar/menu action uses, one phase at a time ("que se
+        // vea igual que el que se usa en el menú desplegable" — 2026-09-21):
+        // extraction first, then the move into `url` (see
+        // `DragOut.moveWithProgress`: an instant same-volume rename in the
+        // common case, genuinely progress-worthy only crossing volumes).
+        // `Task` itself is only assigned once the initializer below returns
+        // (synchronously) — this box lets the closure reach the very task
+        // it's running in, so ProgressPanelView's Cancel button can stop it.
+        final class TaskBox: @unchecked Sendable { var task: Task<Void, Never>? }
+        let box = TaskBox()
+        box.task = Task { @MainActor in
             let panelController = DragProgressPanelController()
             let state = panelController.begin(itemName: entryName)
+            state.onCancel = { box.task?.cancel() }
             defer { panelController.finish() }
             do {
                 let extractedURL = try await DragOut.extract(
                     entryPath: entryPath, archiveURL: archiveURL, password: password
                 ) { info in
-                    Task { @MainActor in state.extractFraction = info.fractionCompleted }
+                    Task { @MainActor in state.progress = info }
                 }
+                if Task.isCancelled { throw CancellationError() }
                 if FileManager.default.fileExists(atPath: url.path) {
                     try FileManager.default.removeItem(at: url)
                 }
                 state.phase = .moving
-                try await DragOut.moveWithProgress(from: extractedURL, to: url) { fraction in
-                    Task { @MainActor in state.moveFraction = fraction }
+                state.progress = .zero
+                try await DragOut.moveWithProgress(from: extractedURL, to: url) { copied, total in
+                    Task { @MainActor in
+                        state.progress = ProgressInfo(
+                            fractionCompleted: total > 0 ? Double(copied) / Double(total) : 1,
+                            processedBytes: copied, totalBytes: total,
+                            bytesPerSecond: 0, estimatedTimeRemaining: nil, currentFile: nil
+                        )
+                    }
                 }
                 completionHandler(nil)
             } catch {

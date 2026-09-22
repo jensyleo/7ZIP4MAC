@@ -105,18 +105,18 @@ enum DragOut {
     static func moveWithProgress(
         from source: URL,
         to destination: URL,
-        progress: @escaping @Sendable (Double) -> Void
+        progress: @escaping @Sendable (_ copiedBytes: UInt64, _ totalBytes: UInt64) -> Void
     ) async throws {
         guard !Self.isSameVolume(source, destination) else {
             try FileManager.default.moveItem(at: source, to: destination)
-            progress(1)
+            progress(1, 1)
             return
         }
         let total = Self.totalSize(of: source)
         guard total > 0 else {
             try FileManager.default.copyItem(at: source, to: destination)
             try? FileManager.default.removeItem(at: source)
-            progress(1)
+            progress(1, 1)
             return
         }
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -127,13 +127,13 @@ enum DragOut {
                 while !Task.isCancelled {
                     try await Task.sleep(nanoseconds: 150_000_000)
                     let copied = Self.totalSize(of: destination)
-                    progress(min(0.99, Double(copied) / Double(total)))
+                    progress(min(copied, total), total)
                 }
             }
             try await group.next()  // the copy task, in practice — the poller never finishes on its own
             group.cancelAll()
         }
-        progress(1)
+        progress(total, total)
         try? FileManager.default.removeItem(at: source)
     }
 

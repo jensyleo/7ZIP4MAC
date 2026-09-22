@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SevenZipKit
 
 /// Live state for a single drag-out's two phases — extracting the entry into
 /// scratch, then moving it into place at the promised destination. A plain
@@ -13,13 +14,23 @@ final class DragTransferState {
         case extracting
         case moving
     }
-    var itemName: String
+    let itemName: String
     var phase: Phase = .extracting
-    var extractFraction: Double = 0
-    var moveFraction: Double = 0
+    var progress: ProgressInfo = .zero
+    /// Set by the caller once the underlying `Task` exists, so the panel's
+    /// own Cancel button (the same `ProgressPanelView` Extract uses) can
+    /// actually stop it instead of just sitting there unwired.
+    var onCancel: (() -> Void)?
 
     init(itemName: String) {
         self.itemName = itemName
+    }
+
+    var title: String {
+        switch phase {
+        case .extracting: "Extracting \(itemName)"
+        case .moving: "Moving \(itemName) to destination"
+        }
     }
 }
 
@@ -27,46 +38,23 @@ private struct DragTransferView: View {
     var state: DragTransferState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(state.itemName)
-                .font(.headline)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            row(label: "Extracting", fraction: state.extractFraction, isActive: state.phase == .extracting)
-            row(label: "Moving to destination", fraction: state.moveFraction, isActive: state.phase == .moving)
-        }
-        .padding(20)
-        .frame(width: 340)
-    }
-
-    private func row(label: String, fraction: Double, isActive: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(label)
-                    .font(.callout)
-                    .foregroundStyle(isActive ? .primary : .secondary)
-                Spacer()
-                if isActive || fraction > 0 {
-                    Text("\(Int((fraction * 100).rounded()))%")
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            ProgressView(value: fraction)
-                .progressViewStyle(.linear)
-                .opacity(isActive || fraction > 0 ? 1 : 0.35)
-        }
+        ProgressPanelView(
+            title: state.title,
+            progress: state.progress,
+            onCancel: { state.onCancel?() }
+        )
     }
 }
 
-/// Shows a small floating, non-activating panel for the duration of a
-/// drag-out's promise fulfillment — the user's mouse is over Finder for the
+/// Shows the same `ProgressPanelView` Extract uses for the duration of a
+/// drag-out's promise fulfillment, but in a small floating, non-activating
+/// panel instead of a window sheet — the user's mouse is over Finder for the
 /// whole gesture, so this deliberately never becomes key/main and never
-/// steals focus, unlike ``ProgressPanelView``'s sheet (which needs its own
-/// window frontmost to make sense). One panel at a time is all a single
-/// drag ever needs; a second concurrent drag gets its own instance instead
-/// of sharing this one, so multi-item drags started close together don't
-/// fight over the same window.
+/// steals focus ("que se vea igual que el que se usa en el menú desplegable"
+/// — 2026-09-21). One panel at a time is all a single drag ever needs; a
+/// second concurrent drag gets its own instance instead of sharing this one,
+/// so multi-item drags started close together don't fight over the same
+/// window.
 @MainActor
 final class DragProgressPanelController {
     private var panel: NSPanel?
@@ -76,7 +64,7 @@ final class DragProgressPanelController {
     func begin(itemName: String) -> DragTransferState {
         let state = DragTransferState(itemName: itemName)
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 150),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 200),
             styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView, .utilityWindow],
             backing: .buffered,
             defer: false
