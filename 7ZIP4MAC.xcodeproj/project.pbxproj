@@ -80,6 +80,7 @@
 		CC5D275D670377B222679264 /* xip.icns in Resources */ = {isa = PBXBuildFile; fileRef = AF2269F473D98CF629067D88 /* xip.icns */; };
 		CFE53BF529EDEF46BB2B6E84 /* iso.icns in Resources */ = {isa = PBXBuildFile; fileRef = D9D1C99976B605416CC3F33A /* iso.icns */; };
 		D2FD65ECAC98F031827BB620 /* CompressionOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE93817FFC5CAC3D517CD570 /* CompressionOptionsView.swift */; };
+		D3E9ACE550C4AF6FC7F31348 /* FileManager+TotalSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26D864BE183A3A00CAC6EF72 /* FileManager+TotalSize.swift */; };
 		D5B16D0F6ADBFF8FE6875F52 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46597CFD0AC275D45EEBA80 /* EmptyStateView.swift */; };
 		DD3D424D9CED4E93E5724347 /* RecentsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF74263CE835744E4BD6D333 /* RecentsStore.swift */; };
 		DD561ADE582DE72585CA2261 /* squashfs.icns in Resources */ = {isa = PBXBuildFile; fileRef = 3C0EF2149BD5BC6655200A53 /* squashfs.icns */; };
@@ -106,6 +107,7 @@
 		226F44E8D6FE9C80B429A585 /* ar.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = ar.icns; sourceTree = "<group>"; };
 		255F3D93BBEFD8490F558E89 /* QuickLookPreviewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreviewer.swift; sourceTree = "<group>"; };
 		26B3E1ABB4CFB41D22097914 /* qcow.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = qcow.icns; sourceTree = "<group>"; };
+		26D864BE183A3A00CAC6EF72 /* FileManager+TotalSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileManager+TotalSize.swift"; sourceTree = "<group>"; };
 		27674259D5F3F91C3DF57C30 /* rar.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = rar.icns; sourceTree = "<group>"; };
 		2C7BFA7A67A0D7DC9452E897 /* fat.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = fat.icns; sourceTree = "<group>"; };
 		3948D796D33ADCECD39DB354 /* udf.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = udf.icns; sourceTree = "<group>"; };
@@ -354,6 +356,7 @@
 				7D2001126EBDA2E2C61E0B03 /* DragOut.swift */,
 				611E885688720221480CE83A /* DragProgressPanel.swift */,
 				6E01E9EBBBE38370F1EDE334 /* FileAssociationService.swift */,
+				26D864BE183A3A00CAC6EF72 /* FileManager+TotalSize.swift */,
 				395179BB8D9139E53BADF516 /* MultiItemDragTrigger.swift */,
 			);
 			path = Services;
@@ -521,6 +524,7 @@
 				966140E86B30B8EBDB8E1107 /* Error+Display.swift in Sources */,
 				BEFBDB4CCA2FC0678925836E /* FileAssociationService.swift in Sources */,
 				FE7A082EE02E5B964C9F9387 /* FileListView.swift in Sources */,
+				D3E9ACE550C4AF6FC7F31348 /* FileManager+TotalSize.swift in Sources */,
 				5019AA74E44F1B1583212694 /* FocusedValues.swift in Sources */,
 				EFA064CB5ACECD8285465916 /* HelpTopic.swift in Sources */,
 				4EEC91A277793CA322E5B0DE /* HelpView.swift in Sources */,
@@ -622,7 +626,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.27;
+				MARKETING_VERSION = 1.7.28;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
@@ -712,7 +716,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.27;
+				MARKETING_VERSION = 1.7.28;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;

@@ -476,7 +476,7 @@ public final class ArchiveViewModel {
         try await service.compress(
             CompressionRequest(
                 destinationURL: archive.url, sourceURLs: topLevelItems, format: format, password: password,
-                totalSourceSize: Self.totalSize(of: sources)
+                totalSourceSize: FileManager.default.totalSize(of: sources)
             ),
             progress: progress
         )
@@ -668,32 +668,6 @@ public final class ArchiveViewModel {
     /// anything itself. See the `revealTargets` call site.
     private static func sanitizedRelativePath(_ path: String) -> String {
         path.split(separator: "/").filter { $0 != ".." && $0 != "." && !$0.isEmpty }.joined(separator: "/")
-    }
-
-    /// Recursively sums the byte size of the given files/folders — used to
-    /// give `addFilesCore`/`copyEntry`'s progress panel a real percentage and
-    /// ETA instead of an indeterminate bar, the same way
-    /// `CompressionViewModel.totalSize(of:)` does for the New Archive flow.
-    private static func totalSize(of urls: [URL]) -> UInt64 {
-        let fm = FileManager.default
-        var total: UInt64 = 0
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard fm.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            if isDirectory.boolValue {
-                let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey])
-                while let child = enumerator?.nextObject() as? URL {
-                    let values = try? child.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-                    if values?.isRegularFile == true {
-                        total += UInt64(values?.fileSize ?? 0)
-                    }
-                }
-            } else {
-                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-                total += UInt64(size)
-            }
-        }
-        return total
     }
 
     private static func pathExists(_ path: String, in entries: [ArchiveEntry]) -> Bool {

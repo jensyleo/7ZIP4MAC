@@ -28,15 +28,21 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
     private let entryName: String
     private let password: String?
     private let crossArchiveTransferData: Data?
+    /// Shared across every provider `beginMultiDrag` creates for the same
+    /// drag, so a multi-item selection shows one steady progress panel
+    /// instead of one per item — see `DragProgressPanelController`'s doc
+    /// comment.
+    private let panelController: DragProgressPanelController
 
     init(
         archiveURL: URL, entryPath: String, entryName: String, password: String?,
-        typeIdentifier: String
+        typeIdentifier: String, panelController: DragProgressPanelController
     ) {
         self.archiveURL = archiveURL
         self.entryPath = entryPath
         self.entryName = entryName
         self.password = password
+        self.panelController = panelController
         let transfer = DragOut.EntryTransfer(archiveURL: archiveURL, entryPath: entryPath)
         self.crossArchiveTransferData = try? JSONEncoder().encode(transfer)
         super.init()
@@ -74,6 +80,7 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         let archiveURL = archiveURL
         let password = password
         let entryName = entryName
+        let panelController = panelController
         // Publishing a `Progress` for Finder's own UI to pick up (tried
         // 2026-09-21) doesn't work: Finder has nothing to show progress
         // *for* while extraction writes to our hidden scratch directory,
@@ -81,20 +88,20 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         // *own* floating panel instead, reusing the exact same
         // `ProgressPanelView` Extract's toolbar/menu action uses (see
         // `DragProgressPanelController`'s doc comment for why it's a real
-        // key/active panel, not a non-activating one), one phase at a time:
-        // extraction first, then the move into `url` (see
-        // `DragOut.moveWithProgress`: an instant same-volume rename in the
-        // common case, genuinely progress-worthy only crossing volumes).
+        // key/active panel, not a non-activating one, and why it's shared
+        // across a multi-item drag), one phase at a time: extraction first,
+        // then the move into `url` (see `DragOut.moveWithProgress`: an
+        // instant same-volume rename in the common case, genuinely
+        // progress-worthy only crossing volumes).
         // `Task` itself is only assigned once the initializer below returns
         // (synchronously) — this box lets the closure reach the very task
         // it's running in, so ProgressPanelView's Cancel button can stop it.
         final class TaskBox: @unchecked Sendable { var task: Task<Void, Never>? }
         let box = TaskBox()
         box.task = Task { @MainActor in
-            let panelController = DragProgressPanelController()
-            let state = panelController.begin(itemName: entryName)
+            let state = panelController.beginItem(itemName: entryName)
             state.onCancel = { box.task?.cancel() }
-            defer { panelController.finish() }
+            defer { panelController.finishItem() }
             do {
                 let extractedURL = try await DragOut.extract(
                     entryPath: entryPath, archiveURL: archiveURL, password: password
@@ -186,13 +193,17 @@ final class MultiItemDragTriggerView: NSView, NSDraggingSource {
 
     private func beginMultiDrag(with event: NSEvent, archiveURL: URL) {
         let icon = NSWorkspace.shared.icon(for: .data)
+        // One controller for every item of *this* drag, so a multi-selection
+        // shows a single steady progress panel instead of one per item.
+        let panelController = DragProgressPanelController()
         let items: [NSDraggingItem] = entries.map { entry in
             let provider = ArchiveEntryFilePromiseProvider(
                 archiveURL: archiveURL,
                 entryPath: entry.path,
                 entryName: entry.name,
                 password: password,
-                typeIdentifier: DragOut.typeIdentifier(for: entry)
+                typeIdentifier: DragOut.typeIdentifier(for: entry),
+                panelController: panelController
             )
             let draggingItem = NSDraggingItem(pasteboardWriter: provider)
             draggingItem.setDraggingFrame(bounds, contents: icon)
