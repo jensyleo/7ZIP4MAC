@@ -45,8 +45,10 @@ fi
 
 echo "==> Ad-hoc signing (inside-out): engine, then app"
 # Nested code must be signed before the outer bundle so the outer signature is
-# valid over it. Order: engine binary → app.
+# valid over it. Order: engine binaries → app.
 codesign --force --sign - "$BUILT_APP/Contents/Resources/Engine/7zz"
+codesign --force --sign - "$BUILT_APP/Contents/Resources/Engine/lsar"
+codesign --force --sign - "$BUILT_APP/Contents/Resources/Engine/unar"
 codesign --force --deep --sign - "$BUILT_APP"
 
 echo "==> Installing to $INSTALL_APP"

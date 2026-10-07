@@ -28,11 +28,26 @@ public protocol ArchiveServing: Sendable {
     /// Returns true if everything is OK.
     func test(archiveAt url: URL, selectedPaths: [String], password: String?) async throws -> Bool
 
+    /// Same, reporting progress when `basis` says how much there is to verify.
+    func test(
+        archiveAt url: URL, selectedPaths: [String], password: String?,
+        basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws -> Bool
+
     /// Deletes entries from an archive in place.
     func delete(archiveAt url: URL, paths: [String], password: String?) async throws
 
     /// Renames or moves an entry within an archive in place.
     func rename(archiveAt url: URL, from oldPath: String, to newPath: String, password: String?) async throws
+}
+
+public extension ArchiveServing {
+    func test(
+        archiveAt url: URL, selectedPaths: [String], password: String?,
+        basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws -> Bool {
+        try await test(archiveAt: url, selectedPaths: selectedPaths, password: password)
+    }
 }
 
 public struct ArchiveService: ArchiveServing {
@@ -43,8 +58,8 @@ public struct ArchiveService: ArchiveServing {
     }
 
     /// Convenience initialiser that wires the production system bridge.
-    public init(executable: SevenZipExecutable) {
-        self.init(bridge: SystemSevenZipBridge(executable: executable))
+    public init(executable: SevenZipExecutable, fallback: RarFallbackEngine? = nil) {
+        self.init(bridge: SystemSevenZipBridge(executable: executable, fallback: fallback))
     }
 
     /// Single-stream compressors: formats 7-Zip reports as the archive's
@@ -166,6 +181,16 @@ public struct ArchiveService: ArchiveServing {
 
     public func test(archiveAt url: URL, selectedPaths: [String] = [], password: String? = nil) async throws -> Bool {
         try await bridge.test(archiveAt: url, selectedPaths: selectedPaths, password: password)
+    }
+
+    public func test(
+        archiveAt url: URL, selectedPaths: [String], password: String?,
+        basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws -> Bool {
+        try await bridge.test(
+            archiveAt: url, selectedPaths: selectedPaths, password: password,
+            basis: basis, progress: progress
+        )
     }
 
     public func delete(archiveAt url: URL, paths: [String], password: String? = nil) async throws {

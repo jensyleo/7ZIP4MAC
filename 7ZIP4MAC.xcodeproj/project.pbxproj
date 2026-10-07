@@ -77,6 +77,7 @@
 		BE59663C947B96C3D5703FB9 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3CE17201B08684842319F64 /* StatusBarView.swift */; };
 		BEFBDB4CCA2FC0678925836E /* FileAssociationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E01E9EBBBE38370F1EDE334 /* FileAssociationService.swift */; };
 		C221F423663A909BEF6C37B1 /* SevenZip4MACToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E8B6AAE51AE9E7B0167A92 /* SevenZip4MACToolbar.swift */; };
+		C6DEBA3F4A77541E2494315E /* TestingPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7EBCC36A3E8D3CB611F0A99 /* TestingPanelView.swift */; };
 		CC5D275D670377B222679264 /* xip.icns in Resources */ = {isa = PBXBuildFile; fileRef = AF2269F473D98CF629067D88 /* xip.icns */; };
 		CFE53BF529EDEF46BB2B6E84 /* iso.icns in Resources */ = {isa = PBXBuildFile; fileRef = D9D1C99976B605416CC3F33A /* iso.icns */; };
 		D2FD65ECAC98F031827BB620 /* CompressionOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE93817FFC5CAC3D517CD570 /* CompressionOptionsView.swift */; };
@@ -167,6 +168,7 @@
 		BF74263CE835744E4BD6D333 /* RecentsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentsStore.swift; sourceTree = "<group>"; };
 		C19245B70004DBB9CB6279E4 /* EntryRowStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryRowStatus.swift; sourceTree = "<group>"; };
 		C4933B2E1CDA8E4A0D056B5E /* ntfs.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = ntfs.icns; sourceTree = "<group>"; };
+		C7EBCC36A3E8D3CB611F0A99 /* TestingPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingPanelView.swift; sourceTree = "<group>"; };
 		C7F37C6B237CD849A5938A04 /* pkg.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = pkg.icns; sourceTree = "<group>"; };
 		D2DDBC46ED15197B08A63254 /* xar.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = xar.icns; sourceTree = "<group>"; };
 		D4164381AC4B9936A936D47F /* AssociableFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssociableFormat.swift; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 				9723DD1A0D6831A166C3CB26 /* SettingsView.swift */,
 				90E8B6AAE51AE9E7B0167A92 /* SevenZip4MACToolbar.swift */,
 				E3CE17201B08684842319F64 /* StatusBarView.swift */,
+				C7EBCC36A3E8D3CB611F0A99 /* TestingPanelView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -544,6 +547,7 @@
 				356CC5FAB4DB8040AA46AB1B /* SevenZip4MacApp.swift in Sources */,
 				305685237A3C663BC0AB31D6 /* SingleInstance.swift in Sources */,
 				BE59663C947B96C3D5703FB9 /* StatusBarView.swift in Sources */,
+				C6DEBA3F4A77541E2494315E /* TestingPanelView.swift in Sources */,
 				0A065972293A7E0F81DA42C5 /* Uninstaller.swift in Sources */,
 				9338422FF31054919DD48C4D /* WindowAccessor.swift in Sources */,
 			);
@@ -626,7 +630,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.28;
+				MARKETING_VERSION = 1.7.29;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;
@@ -716,7 +720,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.28;
+				MARKETING_VERSION = 1.7.29;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jensyleo.sevenzip4mac;
 				PRODUCT_NAME = 7ZIP4MAC;
 				SDKROOT = macosx;

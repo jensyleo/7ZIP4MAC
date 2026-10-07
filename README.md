@@ -2,9 +2,10 @@
 
 A native macOS graphical interface for [7-Zip](https://www.7-zip.org/), built to
 feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drives
-the official, unmodified `7zz` engine, which is bundled inside the application.
+the official, unmodified `7zz` engine, which is bundled inside the application
+(plus a small fallback for damaged multi-part RAR sets — see below).
 
-> Status: **v1.7.3**
+> Status: **v1.7.29**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -23,12 +24,14 @@ the official, unmodified `7zz` engine, which is bundled inside the application.
 - **Edit archives in place** — Add, Rename, Move, Copy and Delete entries inside
   an already-created archive, without a full re-compress.
 - **Password-protected archives**: the password is asked for and kept only in
-  memory for that session (never written to disk); the prompt caps out at 3
-  attempts before resetting the window.
-- **Drag an entry out to Finder** or preview it (or several selected entries,
-  with arrow-through navigation) in place with **Quick Look** (Space bar).
-- **Test** an archive's integrity, run a **compression benchmark**, and browse
-  recently opened archives.
+  memory for that session (never written to disk), with a button to show or hide
+  what is typed; the prompt caps out at 3 attempts before resetting the window.
+- **Drag an entry out to Finder** — with a progress panel showing percentage,
+  speed and time remaining for both the extraction and the move into place — or
+  preview it (or several selected entries, with arrow-through navigation) in
+  place with **Quick Look** (Space bar).
+- **Test** an archive's integrity (with live progress and cancellation), run a
+  **compression benchmark**, and browse recently opened archives.
 - File-type associations (Settings ▸ File Types) to make 7ZIP4MAC the default
   handler for the formats it supports — including an "Associate Recommended
   Files…" button that does the common ones in one action (after a warning:
@@ -54,6 +57,16 @@ The official `7zz` binary (universal, x86_64 + arm64) is bundled verbatim at
 alongside it (`App/Resources/Engine/License.txt`). All compression, extraction,
 encryption and archive reading is performed by this engine; the application only
 provides the interface.
+
+### Fallback for damaged multi-part RAR sets
+
+7-Zip refuses an entire `name.partNN.rar` set when one volume is 0 bytes, and
+stops listing at the first missing volume. Only for such damaged sets (never for
+healthy archives), the app uses `lsar` and `unar` from
+[The Unarchiver](https://github.com/MacPaw/XADMaster), bundled unmodified at
+`Contents/Resources/Engine/` (Apple Silicon only). They read every volume's
+headers independently, so everything outside the damaged volumes can still be
+listed and extracted; files that live in a bad volume are reported as damaged.
 
 ## Building
 
@@ -108,6 +121,8 @@ Not currently planned, but kept in mind for a future version:
 Application code: [GNU GPL v3.0](LICENSE) © 2026 Jensy Leonardo Martínez Cruz.
 Bundled 7-Zip engine: GNU LGPL (with the unRAR restriction on commercial use of
 the unRAR code), by Igor Pavlov — see `App/Resources/Engine/License.txt`.
+Bundled `lsar`/`unar` fallback: GNU LGPL 2.1 or later, by Dag Ågren and MacPaw —
+see `App/Resources/Engine/unar-LICENSE-LGPL-2.1.txt` and `unar-README.txt`.
 
 This program is free software: you can redistribute it and/or modify it under the
 terms of the **GNU General Public License, version 3**. It is distributed in the

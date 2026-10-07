@@ -39,6 +39,13 @@ public protocol SevenZipBridge: Sendable {
     /// when `selectedPaths` is non-empty.
     func test(archiveAt url: URL, selectedPaths: [String], password: String?) async throws -> Bool
 
+    /// Same as ``test(archiveAt:selectedPaths:password:)`` but reports progress
+    /// when `basis` says how much there is to verify.
+    func test(
+        archiveAt url: URL, selectedPaths: [String], password: String?,
+        basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws -> Bool
+
     /// Deletes entries from an archive in place, rewriting it without them.
     func delete(archiveAt url: URL, paths: [String], password: String?) async throws
 
@@ -48,17 +55,36 @@ public protocol SevenZipBridge: Sendable {
     func rename(archiveAt url: URL, from oldPath: String, to newPath: String, password: String?) async throws
 }
 
+public extension SevenZipBridge {
+    /// Bridges that can't report test progress simply run the plain test.
+    func test(
+        archiveAt url: URL, selectedPaths: [String], password: String?,
+        basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws -> Bool {
+        try await test(archiveAt: url, selectedPaths: selectedPaths, password: password)
+    }
+}
+
 /// The production bridge: turns high-level requests into `7zz` invocations,
 /// classifies the exit status into typed errors, and parses the output.
 public struct SystemSevenZipBridge: SevenZipBridge {
     private let runner: SevenZipRunner
+    private let fallback: RarFallbackEngine?
 
-    public init(runner: SevenZipRunner) {
+    public init(runner: SevenZipRunner, fallback: RarFallbackEngine? = nil) {
         self.runner = runner
+        self.fallback = fallback
     }
 
-    public init(executable: SevenZipExecutable) {
-        self.init(runner: SevenZipRunner(executable: executable))
+    public init(executable: SevenZipExecutable, fallback: RarFallbackEngine? = nil) {
+        self.init(runner: SevenZipRunner(executable: executable), fallback: fallback)
+    }
+
+    /// The fallback engine, but only for a multi-part RAR set that 7-Zip
+    /// can't handle (empty or missing volumes). Healthy archives never use it.
+    private func fallbackIfSetDamaged(_ url: URL) -> RarFallbackEngine? {
+        guard let fallback, VolumeSetHealth.assess(url)?.isDamaged == true else { return nil }
+        return fallback
     }
 
     private static func requireExists(_ url: URL) throws {
@@ -72,6 +98,11 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         password: String?
     ) async throws -> (ArchiveProperties, [ArchiveEntry]) {
         try Self.requireExists(url)
+
+        if let engine = fallbackIfSetDamaged(url) {
+            ArchiveLog.service.info("Listing \(url.lastPathComponent, privacy: .public) with the fallback engine (damaged volume set)")
+            return try await engine.list(archiveAt: url, password: password)
+        }
 
         ArchiveLog.service.info("Listing started for \(url.lastPathComponent, privacy: .public)")
 
@@ -92,6 +123,8 @@ public struct SystemSevenZipBridge: SevenZipBridge {
             }
             if Self.indicatesUnsupportedFormat(message) {
                 ArchiveLog.service.error("Listing failed: unsupported format for \(url.lastPathComponent, privacy: .public)")
+                let empty = Self.emptySiblingVolumes(of: url)
+                if !empty.isEmpty { throw ArchiveError.emptyVolumes(names: empty) }
                 throw ArchiveError.unsupportedFormat
             }
             ArchiveLog.service.error("Listing failed (code \(result.exitCode)) for \(url.lastPathComponent, privacy: .public)")
@@ -112,6 +145,20 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     ) async throws {
         guard FileManager.default.fileExists(atPath: request.archiveURL.path) else {
             throw ArchiveError.archiveNotFound(path: request.archiveURL.path)
+        }
+
+        if let engine = fallbackIfSetDamaged(request.archiveURL) {
+            ArchiveLog.service.info("Extracting \(request.archiveURL.lastPathComponent, privacy: .public) with the fallback engine (damaged volume set)")
+            try await engine.extract(request, progress: progress)
+            progress(ProgressInfo(
+                fractionCompleted: 1,
+                processedBytes: request.totalUncompressedSize,
+                totalBytes: request.totalUncompressedSize,
+                bytesPerSecond: 0,
+                estimatedTimeRemaining: 0,
+                currentFile: nil
+            ))
+            return
         }
 
         ArchiveLog.service.info("Extraction started for \(request.archiveURL.lastPathComponent, privacy: .public)")
@@ -276,16 +323,46 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     }
 
     public func test(archiveAt url: URL, selectedPaths: [String], password: String?) async throws -> Bool {
+        try await test(archiveAt: url, selectedPaths: selectedPaths, password: password, basis: nil) { _ in }
+    }
+
+    public func test(
+        archiveAt url: URL, selectedPaths: [String], password: String?,
+        basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws -> Bool {
         try Self.requireExists(url)
+        if let engine = fallbackIfSetDamaged(url) {
+            ArchiveLog.service.info("Testing \(url.lastPathComponent, privacy: .public) with the fallback engine (damaged volume set)")
+            try await engine.test(
+                archiveAt: url, selectedPaths: selectedPaths, password: password,
+                basis: basis, progress: progress
+            )
+            return true
+        }
         ArchiveLog.service.info("Test started for \(url.lastPathComponent, privacy: .public)")
-        var arguments = ["t", "-y", "-p" + (password ?? ""), url.path]
+        var arguments = ["t", "-y", "-p" + (password ?? "")]
+        let reportsProgress = (basis?.totalBytes ?? 0) > 0
+        if reportsProgress { arguments.append("-bsp1") }
+        arguments.append(url.path)
         // "--" so an entry name starting with "-" is never misread as a
         // 7zz flag — see the matching comment in `extract`.
         if !selectedPaths.isEmpty {
             arguments.append("--")
             arguments.append(contentsOf: selectedPaths)
         }
-        let result = try await runner.run(arguments)
+        // Streamed (not `run`) so cancelling the surrounding task actually
+        // stops 7zz instead of leaving a full read of the archive running.
+        let output = LockedText()
+        let state = ProgressReportingState(totalBytes: basis?.totalBytes ?? 0, report: progress)
+        let (exitCode, errorData) = try await runner.stream(arguments) { chunk in
+            output.append(chunk)
+            if reportsProgress { state.consume(chunk) }
+        }
+        if reportsProgress { state.finish() }
+        if Task.isCancelled { throw ArchiveError.cancelled }
+        let result = ProcessResult(
+            exitCode: exitCode, standardOutput: Data(output.value.utf8), standardError: errorData
+        )
 
         if result.exitCode >= 2 {
             let message = result.diagnosticMessage
@@ -294,6 +371,12 @@ public struct SystemSevenZipBridge: SevenZipBridge {
             return false
         }
         let ok = result.outputString.contains("Everything is Ok")
+        if ok, let total = basis?.totalBytes, total > 0 {
+            progress(ProgressInfo(
+                fractionCompleted: 1, processedBytes: total, totalBytes: total,
+                bytesPerSecond: 0, estimatedTimeRemaining: 0, currentFile: nil
+            ))
+        }
         ArchiveLog.service.info("Test finished: \(ok ? "OK" : "problems", privacy: .public) for \(url.lastPathComponent, privacy: .public)")
         return ok
     }
@@ -357,6 +440,36 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     private static func indicatesWrongPassword(_ message: String) -> Bool {
         let lowered = message.lowercased()
         return lowered.contains("wrong password") || lowered.contains("cannot open encrypted")
+    }
+
+    /// Names of 0-byte volumes among the siblings of a multi-part archive
+    /// (`name.partNN.rar`, `name.7z.001`, `name.zip.001`), sorted. Empty for
+    /// anything that isn't a recognisable multi-part name.
+    static func emptySiblingVolumes(of url: URL) -> [String] {
+        let name = url.lastPathComponent
+        let prefix: String
+        let suffixPattern: String
+        if let range = name.range(of: #"\.part\d+\.rar$"#, options: [.regularExpression, .caseInsensitive]) {
+            prefix = String(name[..<range.lowerBound])
+            suffixPattern = #"\.part\d+\.rar"#
+        } else if let range = name.range(of: #"\.\d{3}$"#, options: .regularExpression) {
+            prefix = String(name[..<range.lowerBound])
+            suffixPattern = #"\.\d{3}"#
+        } else {
+            return []
+        }
+        let pattern = "^" + NSRegularExpression.escapedPattern(for: prefix) + suffixPattern + "$"
+        let directory = url.deletingLastPathComponent()
+        guard let siblings = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return [] }
+        return siblings
+            .filter { $0.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
+            .filter { sibling in
+                let size = (try? FileManager.default.attributesOfItem(
+                    atPath: directory.appendingPathComponent(sibling).path
+                )[.size] as? NSNumber)?.intValue
+                return size == 0
+            }
+            .sorted()
     }
 
     private static func indicatesUnsupportedFormat(_ message: String) -> Bool {

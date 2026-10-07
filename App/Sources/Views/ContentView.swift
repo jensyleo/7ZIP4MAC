@@ -61,12 +61,20 @@ struct ContentView: View {
             pendingTransfers: $pendingCrossArchiveTransfers,
             notifyOnAdd: settings.notifyOnAdd
         ))
+        .sheet(isPresented: testingPresented) {
+            TestingPanelView(
+                archiveName: viewModel.archive?.url.lastPathComponent ?? "archive",
+                progress: viewModel.testProgress,
+                onCancel: viewModel.cancelTest
+            )
+        }
         .sheet(isPresented: passwordPromptPresented) {
             PasswordPromptView(
                 archiveName: viewModel.pendingPasswordURL?.lastPathComponent ?? "archive",
                 showError: viewModel.passwordAttemptFailed,
                 attemptCount: viewModel.passwordAttemptCount,
                 maxAttempts: viewModel.maxPasswordAttempts,
+                isChecking: viewModel.isLoading,
                 onUnlock: { password in
                     viewModel.submitPassword(password)
                 },
@@ -161,6 +169,10 @@ struct ContentView: View {
         .overlay { CrossArchiveDropTarget(onDrop: handleCrossArchiveDrop) }
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
         .navigationTitle(viewModel.archiveURL?.lastPathComponent ?? "7ZIP4MAC")
+    }
+
+    private var testingPresented: Binding<Bool> {
+        Binding(get: { viewModel.isTesting }, set: { if !$0 { viewModel.cancelTest() } })
     }
 
     private var testPresented: Binding<Bool> {
@@ -359,9 +371,10 @@ struct ContentView: View {
                 kind: .button(extract)
             ),
             ToolbarAction(
-                id: "test", title: selection.isEmpty ? "Test" : "Test Selected",
+                id: "test",
+                title: viewModel.isTesting ? "Testing…" : (selection.isEmpty ? "Test" : "Test Selected"),
                 systemImage: "checkmark.seal",
-                isEnabled: viewModel.archive != nil,
+                isEnabled: viewModel.archive != nil && !viewModel.isTesting,
                 help: selection.isEmpty ? "Test the whole archive's integrity" : "Test the selected items' integrity",
                 kind: .button(testArchiveOrSelection)
             ),

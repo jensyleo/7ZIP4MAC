@@ -33,4 +33,22 @@ enum BundledEngine {
         lock.lock(); cached = executable; lock.unlock()
         return executable
     }
+
+    /// The optional RAR fallback (`lsar` + `unar`), bundled next to `7zz`.
+    /// `nil` when either binary is missing, in which case the app simply
+    /// behaves as it did with 7-Zip alone.
+    static func resolveFallback() -> RarFallbackEngine? {
+        // The bundled lsar/unar are arm64-only; on Intel they could not launch.
+        #if !arch(arm64)
+        return nil
+        #else
+        guard
+            let lsar = Bundle.main.url(forResource: "lsar", withExtension: nil, subdirectory: "Engine"),
+            let unar = Bundle.main.url(forResource: "unar", withExtension: nil, subdirectory: "Engine"),
+            let lister = try? SevenZipExecutable(validatingURL: lsar),
+            let extractor = try? SevenZipExecutable(validatingURL: unar)
+        else { return nil }
+        return RarFallbackEngine(lister: lister, extractor: extractor)
+        #endif
+    }
 }

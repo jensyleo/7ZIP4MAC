@@ -58,7 +58,7 @@ enum DragOut {
         let viewModel = OpenArchiveWindowRegistry.viewModel(for: archiveURL)
         let effectiveURL = viewModel?.effectiveArchiveURL ?? archiveURL
         let executable = try BundledEngine.resolve()
-        let service = ArchiveService(executable: executable)
+        let service = ArchiveService(executable: executable, fallback: BundledEngine.resolveFallback())
 
         try FileManager.default.createDirectory(at: stagingRoot, withIntermediateDirectories: true)
         let temp = stagingRoot.appending(path: UUID().uuidString, directoryHint: .isDirectory)

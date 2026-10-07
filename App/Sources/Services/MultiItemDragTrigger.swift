@@ -99,28 +99,31 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         final class TaskBox: @unchecked Sendable { var task: Task<Void, Never>? }
         let box = TaskBox()
         box.task = Task { @MainActor in
-            let state = panelController.beginItem(itemName: entryName)
-            state.onCancel = { box.task?.cancel() }
-            defer { panelController.finishItem() }
+            let item = panelController.beginItem(itemName: entryName)
+            item.onCancel = { box.task?.cancel() }
+            defer { panelController.finishItem(item) }
             do {
+                // Finder starts every promised item at once; this holds the
+                // extra ones back so only a couple hit the archive together.
+                try await panelController.acquireSlot()
+                defer { panelController.releaseSlot() }
                 let extractedURL = try await DragOut.extract(
                     entryPath: entryPath, archiveURL: archiveURL, password: password
                 ) { info in
-                    Task { @MainActor in state.progress = info }
+                    Task { @MainActor in item.report(info) }
                 }
                 if Task.isCancelled { throw CancellationError() }
                 if FileManager.default.fileExists(atPath: url.path) {
                     try FileManager.default.removeItem(at: url)
                 }
-                state.phase = .moving
-                state.progress = .zero
+                item.phase = .moving
                 try await DragOut.moveWithProgress(from: extractedURL, to: url) { copied, total in
                     Task { @MainActor in
-                        state.progress = ProgressInfo(
+                        item.report(ProgressInfo(
                             fractionCompleted: total > 0 ? Double(copied) / Double(total) : 1,
                             processedBytes: copied, totalBytes: total,
                             bytesPerSecond: 0, estimatedTimeRemaining: nil, currentFile: nil
-                        )
+                        ))
                     }
                 }
                 completionHandler(nil)

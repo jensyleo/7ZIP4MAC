@@ -6,10 +6,13 @@ struct PasswordPromptView: View {
     let showError: Bool
     let attemptCount: Int
     let maxAttempts: Int
+    /// True while the archive is being re-read with the submitted password.
+    var isChecking = false
     let onUnlock: (_ password: String) -> Void
     let onCancel: () -> Void
 
     @State private var password = ""
+    @State private var isRevealed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -30,9 +33,36 @@ struct PasswordPromptView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            SecureField("Password", text: $password)
+            HStack(spacing: 6) {
+                Group {
+                    if isRevealed {
+                        TextField("Password", text: $password)
+                    } else {
+                        SecureField("Password", text: $password)
+                    }
+                }
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(unlock)
+                .disabled(isChecking)
+
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    Image(systemName: isRevealed ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.borderless)
+                .help(isRevealed ? "Hide password" : "Show password")
+                .accessibilityLabel(isRevealed ? "Hide password" : "Show password")
+            }
+
+            if isChecking {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking the password… this can take a while on a network volume.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if showError {
                 let remaining = max(0, maxAttempts - attemptCount)
@@ -51,7 +81,7 @@ struct PasswordPromptView: View {
                 Button("Unlock", action: unlock)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .disabled(password.isEmpty)
+                    .disabled(password.isEmpty || isChecking)
             }
         }
         .padding(20)
@@ -59,7 +89,7 @@ struct PasswordPromptView: View {
     }
 
     private func unlock() {
-        guard !password.isEmpty else { return }
+        guard !password.isEmpty, !isChecking else { return }
         onUnlock(password)
     }
 }

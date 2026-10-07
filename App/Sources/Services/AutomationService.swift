@@ -50,7 +50,7 @@ enum AutomationService {
             throw UnsupportedDestinationFormatError(destination: destination)
         }
         let executable = try BundledEngine.resolve()
-        let service = ArchiveService(executable: executable)
+        let service = ArchiveService(executable: executable, fallback: BundledEngine.resolveFallback())
         let request = CompressionRequest(
             destinationURL: destination,
             sourceURLs: sources,
@@ -69,7 +69,7 @@ enum AutomationService {
         password: String? = nil
     ) async throws -> URL {
         let executable = try BundledEngine.resolve()
-        let service = ArchiveService(executable: executable)
+        let service = ArchiveService(executable: executable, fallback: BundledEngine.resolveFallback())
         let request = ExtractionRequest(
             archiveURL: archive,
             destinationURL: destination,
