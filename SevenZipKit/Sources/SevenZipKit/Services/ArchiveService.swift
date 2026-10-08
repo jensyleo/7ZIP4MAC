@@ -118,6 +118,10 @@ public struct ArchiveService: ArchiveServing {
                 return fallback
             }
 
+            // The staged copy is a new file; carry the download marker over so
+            // whatever is extracted from it is still checked by Gatekeeper.
+            if let quarantine = Quarantine.value(of: url) { Quarantine.apply(quarantine, to: innerURL) }
+
             guard let (innerProperties, innerEntries) = try? await bridge.list(archiveAt: innerURL, password: password) else {
                 // Not a recognizable archive inside — a plain, non-tar file
                 // was compressed on its own (e.g. "notes.txt.gz"). The root's

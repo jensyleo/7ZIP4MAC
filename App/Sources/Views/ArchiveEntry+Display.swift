@@ -25,23 +25,6 @@ extension ArchiveEntry {
         guard let modified else { return "—" }
         return DateFormatterCache.medium.string(from: modified)
     }
-
-    /// The SF Symbol that best represents this entry.
-    var symbolName: String {
-        if isDirectory { return "folder.fill" }
-        let ext = (name as NSString).pathExtension.lowercased()
-        switch ext {
-        case "txt", "md", "rtf", "log": return "doc.text.fill"
-        case "png", "jpg", "jpeg", "gif", "heic", "webp", "tiff", "bmp": return "photo.fill"
-        case "mp3", "wav", "aac", "flac", "m4a": return "music.note"
-        case "mp4", "mov", "avi", "mkv", "m4v": return "film.fill"
-        case "zip", "7z", "rar", "gz", "tar", "bz2", "xz": return "doc.zipper"
-        case "pdf": return "doc.richtext.fill"
-        case "app", "dmg", "pkg": return "app.fill"
-        case "swift", "c", "cpp", "h", "m", "py", "js", "ts", "rs", "go", "java": return "chevron.left.forwardslash.chevron.right"
-        default: return "doc.fill"
-        }
-    }
 }
 
 /// Shared byte formatter (allocating a `ByteCountFormatter` per row is wasteful).

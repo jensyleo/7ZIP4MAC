@@ -38,13 +38,13 @@ public struct ArchiveEntry: Identifiable, Hashable, Sendable {
 
     /// The display name: the last path component.
     public var name: String {
-        let trimmed = path.hasSuffix("/") ? String(path.dropLast()) : path
+        let trimmed = path.trimmingTrailingSlash
         return trimmed.split(separator: "/").last.map(String.init) ?? trimmed
     }
 
     /// The parent directory path inside the archive, or empty for top level.
     public var parentPath: String {
-        let trimmed = path.hasSuffix("/") ? String(path.dropLast()) : path
+        let trimmed = path.trimmingTrailingSlash
         var components = trimmed.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
         guard components.count > 1 else { return "" }
         components.removeLast()
@@ -71,5 +71,20 @@ public struct ArchiveEntry: Identifiable, Hashable, Sendable {
         self.isEncrypted = isEncrypted
         self.method = method
         self.attributes = attributes
+    }
+}
+
+public extension String {
+    /// Folders are stored with a trailing slash; this drops it.
+    var trimmingTrailingSlash: String {
+        hasSuffix("/") ? String(dropLast()) : self
+    }
+
+    /// Whether this path, used as a destination inside an archive, stays inside
+    /// it: not empty, not absolute, and no ".." component. Entry names come
+    /// from the archive, so they cannot be trusted to satisfy this.
+    var isSafeArchiveRelativePath: Bool {
+        guard !isEmpty, !hasPrefix("/") else { return false }
+        return !split(separator: "/", omittingEmptySubsequences: true).contains("..")
     }
 }

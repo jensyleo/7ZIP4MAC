@@ -163,6 +163,10 @@ public struct SystemSevenZipBridge: SevenZipBridge {
 
         ArchiveLog.service.info("Extraction started for \(request.archiveURL.lastPathComponent, privacy: .public)")
 
+        let quarantine = Quarantine.value(of: request.archiveURL)
+        let destinationExisted = FileManager.default.fileExists(atPath: request.destinationURL.path)
+        let startedAt = Date()
+
         var arguments = [request.flattenPaths ? "e" : "x", request.archiveURL.path]
         arguments.append("-o" + request.destinationURL.path)
         arguments.append("-y")
@@ -214,6 +218,10 @@ public struct SystemSevenZipBridge: SevenZipBridge {
                 )
             }
             ArchiveLog.service.error("Extraction skipped unsafe symlink(s) for \(request.archiveURL.lastPathComponent, privacy: .public): \(message.trimmingCharacters(in: .whitespacesAndNewlines), privacy: .public)")
+        }
+
+        if let quarantine {
+            Quarantine.propagate(quarantine, for: request, destinationExisted: destinationExisted, startedAt: startedAt)
         }
 
         // Ensure the UI ends at 100%.

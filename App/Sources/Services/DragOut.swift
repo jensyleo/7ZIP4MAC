@@ -231,7 +231,7 @@ enum DragOut {
     /// with `ArchiveViewModel.copyEntry`, which extracts a single entry into
     /// a scratch folder the same way and has the same nesting problem.
     static func locateExtractedItem(forEntryPath entryPath: String, in root: URL) throws -> URL {
-        let trimmed = entryPath.hasSuffix("/") ? String(entryPath.dropLast()) : entryPath
+        let trimmed = entryPath.trimmingTrailingSlash
         let depth = trimmed.split(separator: "/").count
         var current = root
         for _ in 0..<max(depth, 1) {

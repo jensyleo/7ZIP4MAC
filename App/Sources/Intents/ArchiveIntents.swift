@@ -38,7 +38,9 @@ struct CompressFilesIntent: AppIntent {
             sources.append(url)
         }
 
-        let sanitizedName = archiveName.isEmpty ? "Archive" : archiveName
+        // A name like "../x" must not place the archive outside the scratch folder.
+        let leafName = (archiveName as NSString).lastPathComponent
+        let sanitizedName = (leafName.isEmpty || leafName == "." || leafName == "..") ? "Archive" : leafName
         let destination = scratch.appendingPathComponent("\(sanitizedName).7z")
         _ = try await AutomationService.compress(sources: sources, destination: destination, password: password)
 

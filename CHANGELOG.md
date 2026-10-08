@@ -3,6 +3,17 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.30] — 2026-10-08
+
+### Security
+- Files extracted with 7-Zip now keep macOS's "downloaded from the internet" marker (`com.apple.quarantine`) when the archive has it, so Gatekeeper checks an app unpacked from a downloaded archive just as it would with the system's own unarchiver. 7-Zip itself never copied it. This covers Extract, dragging an item out to Finder, and archives unwrapped from `.gz`/`.bz2`/`.xz`. Files that were already in the destination folder are left untouched.
+- Copy and Move now refuse a destination path that is absolute or contains `..`. The default destination comes from the entry's own name, which an archive controls.
+- The Shortcuts "Compress" action ignores any directory part in the archive name, so the archive cannot be created outside its scratch folder.
+
+### Internal
+- Removed unused code (an unused icon-name table and two unused constants), shared the "trim trailing slash" helper instead of eight copies of the same expression, and fixed misplaced doc comments.
+- Added tests for the quarantine marker (including real 7-Zip extractions) and for path validation.
+
 ## [1.7.29] — 2026-10-07
 
 ### Added

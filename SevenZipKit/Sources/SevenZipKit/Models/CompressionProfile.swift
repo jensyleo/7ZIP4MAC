@@ -43,8 +43,6 @@ public extension CompressionProfile {
         UUID(uuid: (0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, n))
     }
 
-    /// One gibibyte, for volume sizes.
-    private static let giB: UInt64 = 1024 * 1024 * 1024
     private static let miB: UInt64 = 1024 * 1024
 
     /// The profiles that ship with the app.

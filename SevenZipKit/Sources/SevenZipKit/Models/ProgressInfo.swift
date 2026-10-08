@@ -39,11 +39,6 @@ public struct ProgressInfo: Sendable, Equatable {
         self.currentFile = currentFile
     }
 
-    /// Bytes still to be processed.
-    public var remainingBytes: UInt64 {
-        totalBytes > processedBytes ? totalBytes - processedBytes : 0
-    }
-
     public static let zero = ProgressInfo(
         fractionCompleted: 0, processedBytes: 0, totalBytes: 0,
         bytesPerSecond: 0, estimatedTimeRemaining: nil, currentFile: nil

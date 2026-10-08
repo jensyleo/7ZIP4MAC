@@ -798,7 +798,7 @@ private struct CrossArchiveTransferAlert: ViewModifier {
     }
 
     private func entryName(_ transfer: DragOut.EntryTransfer) -> String {
-        let trimmed = transfer.entryPath.hasSuffix("/") ? String(transfer.entryPath.dropLast()) : transfer.entryPath
+        let trimmed = transfer.entryPath.trimmingTrailingSlash
         return (trimmed as NSString).lastPathComponent
     }
 
@@ -843,7 +843,7 @@ private struct CrossArchiveTransferAlert: ViewModifier {
     private func proceed(_ transfers: [DragOut.EntryTransfer], move: Bool) {
         pendingTransfers = nil
         let existingPaths = Set((viewModel.archive?.entries ?? []).map {
-            $0.path.hasSuffix("/") ? String($0.path.dropLast()) : $0.path
+            $0.path.trimmingTrailingSlash
         })
         let conflictingPaths = Set(transfers.map(destinationPath(for:)).filter { existingPaths.contains($0) })
         guard !conflictingPaths.isEmpty else {

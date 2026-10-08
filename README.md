@@ -5,7 +5,7 @@ feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drive
 the official, unmodified `7zz` engine, which is bundled inside the application
 (plus a small fallback for damaged multi-part RAR sets — see below).
 
-> Status: **v1.7.29**
+> Status: **v1.7.30**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -17,7 +17,8 @@ the official, unmodified `7zz` engine, which is bundled inside the application
 - **Extract** the whole archive or a selection, with live progress
   (percent/speed/ETA), cancellation, and a configurable policy for files that
   already exist at the destination (Overwrite / Skip / Rename Extracted File —
-  Settings ▸ General).
+  Settings ▸ General). Extracted files keep macOS's "downloaded from the
+  internet" marker when the archive has it, so Gatekeeper still checks them.
 - **Create archives** (7z / ZIP / TAR) with a chosen compression level, optional
   password + filename encryption, split volumes, and built-in or custom
   compression profiles.
