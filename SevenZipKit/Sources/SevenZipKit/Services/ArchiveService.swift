@@ -52,14 +52,58 @@ public extension ArchiveServing {
 
 public struct ArchiveService: ArchiveServing {
     private let bridge: SevenZipBridge
+    private let unwrapLimit: Int64?
 
-    public init(bridge: SevenZipBridge) {
+    /// - Parameter unwrapLimit: The most a single-stream archive may unpack to
+    ///   when it is opened; `nil` (the default) means whatever the disk can
+    ///   hold, less a reserve.
+    public init(bridge: SevenZipBridge, unwrapLimit: Int64? = nil) {
         self.bridge = bridge
+        self.unwrapLimit = unwrapLimit
     }
 
     /// Convenience initialiser that wires the production system bridge.
     public init(executable: SevenZipExecutable, fallback: RarFallbackEngine? = nil) {
         self.init(bridge: SystemSevenZipBridge(executable: executable, fallback: fallback))
+    }
+
+    /// Room kept free on the disk while a single-stream archive is unpacked.
+    private static let unwrapReserve: Int64 = 2 << 30
+
+    /// How much a single-stream archive may unpack to before opening it is
+    /// refused: all the free space less a reserve, never less than 256 MB. A
+    /// fixed cap would refuse legitimate large `.tar.gz` files; this only
+    /// stops a tiny file that expands until the disk is full.
+    static func defaultUnwrapLimit(for directory: URL) -> Int64 {
+        let free = (try? directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
+            .volumeAvailableCapacityForImportantUsage ?? 0
+        return max(free - unwrapReserve, 256 << 20)
+    }
+
+    private static func size(ofFilesIn directory: URL) -> Int64 {
+        let files = FileManager.default.enumerator(
+            at: directory, includingPropertiesForKeys: [.fileSizeKey], options: []
+        )
+        var total: Int64 = 0
+        while let url = files?.nextObject() as? URL {
+            total += Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+        }
+        return total
+    }
+
+    /// Extracts to `staging`, abandoning the job if what comes out outgrows `limit`.
+    private func extractWatchingSize(_ request: ExtractionRequest, staging: URL, limit: Int64) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await bridge.extract(request) { _ in } }
+            group.addTask {
+                while true {
+                    try await Task.sleep(for: .milliseconds(250))
+                    if Self.size(ofFilesIn: staging) > limit { throw ArchiveError.unpackedTooLarge }
+                }
+            }
+            defer { group.cancelAll() }
+            try await group.next()
+        }
     }
 
     /// Single-stream compressors: formats 7-Zip reports as the archive's
@@ -110,7 +154,9 @@ public struct ArchiveService: ArchiveServing {
             let request = ExtractionRequest(
                 archiveURL: url, destinationURL: staging, password: password, selectedPaths: []
             )
-            try await bridge.extract(request) { _ in }
+            try await extractWatchingSize(
+                request, staging: staging, limit: unwrapLimit ?? Self.defaultUnwrapLimit(for: staging)
+            )
 
             let items = try FileManager.default.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil)
             guard let innerURL = items.first, items.count == 1 else {
@@ -159,6 +205,9 @@ public struct ArchiveService: ArchiveServing {
                 url: url, properties: innerProperties, entries: innerEntries,
                 effectiveURL: innerURL, stagingDirectory: staging
             )
+        } catch ArchiveError.unpackedTooLarge {
+            try? FileManager.default.removeItem(at: staging)
+            throw ArchiveError.unpackedTooLarge
         } catch {
             try? FileManager.default.removeItem(at: staging)
             return fallback

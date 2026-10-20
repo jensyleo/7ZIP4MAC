@@ -3,6 +3,15 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.32] — 2026-10-20
+
+### Security
+- Passwords are no longer put on the 7-Zip command line, where any user of the Mac could read them with `ps`. They are now handed to the engine through a terminal input. This covers opening, testing, extracting, creating, renaming and deleting. A password that cannot travel that way (over 1,000 bytes or containing a line break) still uses the old form. The fallback engine used for damaged multi-part RAR sets has no such input, so a password for those still goes on its command line.
+- Opening a single-stream archive (`.gz`, `.bz2`, `.xz`…) unpacks it first. A tiny file built to expand without end could fill the disk. Unpacking now stops, cleans up and reports the problem when the output would use up the free space (less a 2 GB reserve). There is no fixed size cap, so large `.tar.gz` files still open.
+
+### Internal
+- Added tests for both fixes, using the real 7-Zip engine.
+
 ## [1.7.31] — 2026-10-20
 
 ### Added

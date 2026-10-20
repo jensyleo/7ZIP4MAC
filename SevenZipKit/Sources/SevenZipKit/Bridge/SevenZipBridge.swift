@@ -106,13 +106,13 @@ public struct SystemSevenZipBridge: SevenZipBridge {
 
         ArchiveLog.service.info("Listing started for \(url.lastPathComponent, privacy: .public)")
 
-        var arguments = ["l", "-slt", "-y"]
-        // Force a password value so 7-Zip fails fast instead of blocking on a
-        // prompt when headers are encrypted. Never logged.
-        arguments.append("-p" + (password ?? ""))
-        arguments.append(url.path)
+        // A real password travels on the engine's terminal input, not the
+        // command line; without one, -p makes 7-Zip fail fast instead of
+        // blocking on a prompt when headers are encrypted. Never logged.
+        let handoff = PasswordHandoff(password ?? "")
+        let arguments = handoff.appending(to: ["l", "-slt", "-y"]) + [url.path]
 
-        let result = try await runner.run(arguments)
+        let result = try await runner.run(arguments, input: handoff.input)
 
         // Exit codes: 0 = OK, 1 = warning (still usable), >= 2 = fatal.
         if result.exitCode >= 2 {
@@ -175,8 +175,10 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // Only pass -p when there's a real password: a bare "-p" (empty
         // string) can make 7zz block on an interactive password prompt with
         // no terminal attached (same hang the `d`/`rn` commands guard against).
+        var handoff: PasswordHandoff?
         if let password = request.password, !password.isEmpty {
-            arguments.append("-p" + password)
+            handoff = PasswordHandoff(password)
+            arguments = handoff!.appending(to: arguments)
         }
         // Restrict to selected entries, if any. "--" marks the end of
         // switches so an entry name starting with "-" (legal inside an
@@ -192,7 +194,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
             report: progress
         )
 
-        let (exitCode, errorData) = try await runner.stream(arguments) { chunk in
+        let (exitCode, errorData) = try await runner.stream(arguments, input: handoff?.input) { chunk in
             state.consume(chunk)
         }
         state.finish()
@@ -251,8 +253,11 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         arguments.append("-bsp1")
         arguments.append("-y")
 
+        var handoff: PasswordHandoff?
         if request.format.supportsPassword, let password = request.password, !password.isEmpty {
-            arguments.append("-p" + password)
+            // 7-Zip asks twice (password, then confirmation) when creating.
+            handoff = PasswordHandoff(password, creating: true)
+            arguments = handoff!.appending(to: arguments)
             if request.format == .zip {
                 arguments.append("-mem=AES256")
             }
@@ -278,7 +283,8 @@ public struct SystemSevenZipBridge: SevenZipBridge {
 
         let (exitCode, errorData) = try await runner.stream(
             arguments,
-            workingDirectory: request.workingDirectory
+            workingDirectory: request.workingDirectory,
+            input: handoff?.input
         ) { chunk in
             state.consume(chunk)
         }
@@ -348,7 +354,8 @@ public struct SystemSevenZipBridge: SevenZipBridge {
             return true
         }
         ArchiveLog.service.info("Test started for \(url.lastPathComponent, privacy: .public)")
-        var arguments = ["t", "-y", "-p" + (password ?? "")]
+        let handoff = PasswordHandoff(password ?? "")
+        var arguments = handoff.appending(to: ["t", "-y"])
         let reportsProgress = (basis?.totalBytes ?? 0) > 0
         if reportsProgress { arguments.append("-bsp1") }
         arguments.append(url.path)
@@ -362,7 +369,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // stops 7zz instead of leaving a full read of the archive running.
         let output = LockedText()
         let state = ProgressReportingState(totalBytes: basis?.totalBytes ?? 0, report: progress)
-        let (exitCode, errorData) = try await runner.stream(arguments) { chunk in
+        let (exitCode, errorData) = try await runner.stream(arguments, input: handoff.input) { chunk in
             output.append(chunk)
             if reportsProgress { state.consume(chunk) }
         }
@@ -400,7 +407,11 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // attached, that hangs until 7zz gives up ("Break signaled", exit 255).
         // So the flag is only included when there's an actual password.
         var arguments = ["d", url.path, "-y"]
-        if let password, !password.isEmpty { arguments.append("-p" + password) }
+        var handoff: PasswordHandoff?
+        if let password, !password.isEmpty {
+            handoff = PasswordHandoff(password)
+            arguments = handoff!.appending(to: arguments)
+        }
         // "--" so an entry name starting with "-" is never misread as a
         // 7zz flag — see the matching comment in `extract`.
         arguments.append("--")
@@ -409,7 +420,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         let batchSize = 400
         for start in stride(from: 0, to: paths.count, by: batchSize) {
             let batch = Array(paths[start..<min(start + batchSize, paths.count)])
-            let result = try await runner.run(arguments + batch)
+            let result = try await runner.run(arguments + batch, input: handoff?.input)
             try Self.throwIfFatal(result, operation: "Delete", url: url)
         }
         ArchiveLog.service.info("Delete finished for \(url.lastPathComponent, privacy: .public)")
@@ -420,12 +431,16 @@ public struct SystemSevenZipBridge: SevenZipBridge {
 
         ArchiveLog.service.info("Rename started for \(url.lastPathComponent, privacy: .public)")
         var arguments = ["rn", url.path, "-y"]
-        if let password, !password.isEmpty { arguments.append("-p" + password) }
+        var handoff: PasswordHandoff?
+        if let password, !password.isEmpty {
+            handoff = PasswordHandoff(password)
+            arguments = handoff!.appending(to: arguments)
+        }
         // "--" so an entry name starting with "-" is never misread as a
         // 7zz flag — see the matching comment in `extract`.
         arguments.append("--")
         arguments.append(contentsOf: [oldPath, newPath])
-        let result = try await runner.run(arguments)
+        let result = try await runner.run(arguments, input: handoff?.input)
         try Self.throwIfFatal(result, operation: "Rename", url: url)
         ArchiveLog.service.info("Rename finished for \(url.lastPathComponent, privacy: .public)")
     }

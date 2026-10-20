@@ -50,6 +50,66 @@ private final class ProcessBox: @unchecked Sendable {
     }
 }
 
+/// A password handed to the engine through a terminal instead of the command
+/// line, where any local user could read it with `ps`.
+///
+/// 7-Zip reads a password it is not given as `-pSECRET` from the terminal on
+/// its standard input, with echo off. A pseudo-terminal is the only stdin it
+/// accepts that from (a plain pipe is ignored), and the text can be written to
+/// it before the engine starts, so no prompt has to be watched for.
+private final class TerminalInput: @unchecked Sendable {
+    let slave: FileHandle
+    private let master: FileHandle
+
+    /// `nil` if no pseudo-terminal can be opened.
+    init?(text: String) {
+        var masterFD: Int32 = -1
+        var slaveFD: Int32 = -1
+        guard openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 else { return nil }
+        master = FileHandle(fileDescriptor: masterFD, closeOnDealloc: false)
+        slave = FileHandle(fileDescriptor: slaveFD, closeOnDealloc: false)
+        master.write(Data(text.utf8))
+    }
+
+    /// Closes both ends once the engine has exited.
+    func close() {
+        try? slave.close()
+        try? master.close()
+    }
+}
+
+/// How a password reaches the engine: the argument (if any) to put on its
+/// command line, and the text to feed it on standard input.
+///
+/// When opening an existing archive 7-Zip asks for the password by itself, and
+/// a bare `-p` would instead mean "empty password", so no flag is passed. When
+/// creating one the bare `-p` is what makes it ask (twice, to confirm).
+public struct PasswordHandoff: Sendable {
+    public let argument: String?
+    public let input: String?
+
+    /// The terminal's line limit is 1,024 bytes and a line break ends the
+    /// answer, so a password that cannot travel that way keeps the old
+    /// `-pSECRET` form. With no password at all, `-p` alone makes 7-Zip fail
+    /// fast instead of waiting for an answer nobody will give.
+    public init(_ password: String, creating: Bool = false) {
+        let fits = !password.isEmpty && password.utf8.count <= 1000
+            && !password.unicodeScalars.contains { $0.value < 0x20 || $0.value == 0x7F }
+        if fits {
+            argument = creating ? "-p" : nil
+            input = String(repeating: password + "\n", count: creating ? 2 : 1)
+        } else {
+            argument = "-p" + password
+            input = nil
+        }
+    }
+
+    /// `arguments` plus this hand-off's flag, if it has one.
+    public func appending(to arguments: [String]) -> [String] {
+        argument.map { arguments + [$0] } ?? arguments
+    }
+}
+
 /// The single low-level gateway that launches the official `7zz` engine.
 ///
 /// This is the only place in the codebase that spawns a process. Higher
@@ -63,8 +123,8 @@ public struct SevenZipRunner: Sendable {
     }
 
     /// The setup shared by `run()` and `stream()`: a `Process` wired to the
-    /// engine with stdin disabled (never let it wait on an interactive
-    /// password prompt; everything is passed via arguments) and both pipes
+    /// engine with stdin disabled — or, when there is a password, a terminal
+    /// that already holds it, so the engine never waits for a person — and both pipes
     /// attached, plus a background thread ready to drain stderr into
     /// `errorBox` — started only once the caller has confirmed the process
     /// actually launched. Doesn't call `process.run()` itself, since `run()`
@@ -74,7 +134,8 @@ public struct SevenZipRunner: Sendable {
     private static func makeProcess(
         _ arguments: [String],
         executableURL: URL,
-        workingDirectory: URL?
+        workingDirectory: URL?,
+        input: TerminalInput?
     ) -> (process: Process, outputPipe: Pipe, errorBox: DataBox, errorDone: DispatchSemaphore, errorThread: Thread) {
         let process = Process()
         process.executableURL = executableURL
@@ -87,7 +148,7 @@ public struct SevenZipRunner: Sendable {
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
         process.standardError = errorPipe
-        process.standardInput = FileHandle.nullDevice
+        process.standardInput = input?.slave ?? FileHandle.nullDevice
 
         let errorBox = DataBox()
         let errorDone = DispatchSemaphore(value: 0)
@@ -107,12 +168,14 @@ public struct SevenZipRunner: Sendable {
     /// - Parameter arguments: Arguments passed verbatim to `7zz`.
     /// - Returns: The captured ``ProcessResult``.
     /// - Throws: ``ArchiveError/launchFailed(reason:)`` if the process cannot start.
-    public func run(_ arguments: [String]) async throws -> ProcessResult {
+    public func run(_ arguments: [String], input: String? = nil) async throws -> ProcessResult {
         let executableURL = executable.url
         return try await withCheckedThrowingContinuation { continuation in
             Thread.detachNewThread {
+                let terminal = input.flatMap { TerminalInput(text: $0) }
+                defer { terminal?.close() }
                 let (process, outputPipe, errorBox, errorDone, errorThread) = Self.makeProcess(
-                    arguments, executableURL: executableURL, workingDirectory: nil
+                    arguments, executableURL: executableURL, workingDirectory: nil, input: terminal
                 )
 
                 do {
@@ -155,6 +218,7 @@ public struct SevenZipRunner: Sendable {
     public func stream(
         _ arguments: [String],
         workingDirectory: URL? = nil,
+        input: String? = nil,
         onOutput: @escaping @Sendable (String) -> Void
     ) async throws -> (exitCode: Int32, standardError: Data) {
         let executableURL = executable.url
@@ -163,8 +227,11 @@ public struct SevenZipRunner: Sendable {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 Thread.detachNewThread {
+                    let terminal = input.flatMap { TerminalInput(text: $0) }
+                    defer { terminal?.close() }
                     let (process, outputPipe, errorBox, errorDone, errorThread) = Self.makeProcess(
-                        arguments, executableURL: executableURL, workingDirectory: workingDirectory
+                        arguments, executableURL: executableURL, workingDirectory: workingDirectory,
+                        input: terminal
                     )
 
                     do {
