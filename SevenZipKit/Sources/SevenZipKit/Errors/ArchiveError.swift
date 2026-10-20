@@ -42,6 +42,10 @@ public enum ArchiveError: Error, Equatable, Sendable {
     /// The `7zz` output could not be parsed into a structured listing.
     case parsingFailed(reason: String)
 
+    /// Opening a single-stream archive (`.gz`, `.bz2`, `.xz`…) needs its whole
+    /// content unpacked first, and that content would not fit on the disk.
+    case unpackedTooLarge
+
     /// The operation was cancelled by the caller.
     case cancelled
 }
@@ -77,6 +81,8 @@ extension ArchiveError: LocalizedError {
             return "Everything else was extracted, but \(failed.count) file(s) could not be extracted:\n\(shown)\(more)\(hint)"
         case .operationFailed(let code, let message):
             return "The 7-Zip engine reported an error (code \(code)): \(message)"
+        case .unpackedTooLarge:
+            return "This archive unpacks to more data than the disk has room for, so it was not opened. It may be a decompression bomb."
         case .parsingFailed(let reason):
             return "The archive listing could not be read: \(reason)"
         case .cancelled:
