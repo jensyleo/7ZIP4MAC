@@ -5,7 +5,7 @@ feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drive
 the official, unmodified `7zz` engine, which is bundled inside the application
 (plus a small fallback for damaged multi-part RAR sets — see below).
 
-> Status: **v1.7.32**
+> Status: **v1.7.33**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -69,8 +69,10 @@ provides the interface.
 7-Zip refuses an entire `name.partNN.rar` set when one volume is 0 bytes, and
 stops listing at the first missing volume. Only for such damaged sets (never for
 healthy archives), the app uses `lsar` and `unar` from
-[The Unarchiver](https://github.com/MacPaw/XADMaster), bundled unmodified at
-`Contents/Resources/Engine/` (Apple Silicon only). They read every volume's
+[The Unarchiver](https://github.com/MacPaw/XADMaster), bundled at
+`Contents/Resources/Engine/` (Apple Silicon only) with one small patch that lets
+a password be given on standard input rather than the command line (source and
+build script in [`ThirdParty/unar/`](ThirdParty/unar)). They read every volume's
 headers independently, so everything outside the damaged volumes can still be
 listed and extracted; files that live in a bad volume are reported as damaged.
 
@@ -127,8 +129,9 @@ Not currently planned, but kept in mind for a future version:
 Application code: [GNU GPL v3.0](LICENSE) © 2026 Jensy Leonardo Martínez Cruz.
 Bundled 7-Zip engine: GNU LGPL (with the unRAR restriction on commercial use of
 the unRAR code), by Igor Pavlov — see `App/Resources/Engine/License.txt`.
-Bundled `lsar`/`unar` fallback: GNU LGPL 2.1 or later, by Dag Ågren and MacPaw —
-see `App/Resources/Engine/unar-LICENSE-LGPL-2.1.txt` and `unar-README.txt`.
+Bundled `lsar`/`unar` fallback (modified build): GNU LGPL 2.1 or later, by Dag Ågren
+and MacPaw — see `App/Resources/Engine/unar-LICENSE-LGPL-2.1.txt`, `unar-README.txt`
+and `ThirdParty/unar/README.md`.
 
 This program is free software: you can redistribute it and/or modify it under the
 terms of the **GNU General Public License, version 3**. It is distributed in the

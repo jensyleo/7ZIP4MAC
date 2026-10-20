@@ -17,10 +17,10 @@ public struct RarFallbackEngine: Sendable {
     // MARK: - Listing
 
     func list(archiveAt url: URL, password: String?) async throws -> (ArchiveProperties, [ArchiveEntry]) {
-        var arguments = ["-j"]
-        if let password, !password.isEmpty { arguments += ["-p", password] }
+        var arguments = ["-j"] + Self.passwordArguments(password)
         arguments.append(url.path)
-        let result = try await SevenZipRunner(executable: lister).run(arguments)
+        let result = try await SevenZipRunner(executable: lister)
+            .run(arguments, pipedInput: Self.passwordInput(for: password))
         guard result.exitCode == 0 else {
             throw ArchiveError.operationFailed(
                 code: result.exitCode,
@@ -80,13 +80,12 @@ public struct RarFallbackEngine: Sendable {
         basis: TestProgressBasis? = nil,
         progress: @escaping @Sendable (ProgressInfo) -> Void = { _ in }
     ) async throws {
-        var arguments = ["-t"]
-        if let password, !password.isEmpty { arguments += ["-p", password] }
+        var arguments = ["-t"] + Self.passwordArguments(password)
         arguments.append(url.path)
         arguments += Self.selectionArguments(for: selectedPaths)
         let state = LsarTestState(basis: basis, report: progress)
         let (exitCode, errorData) = try await SevenZipRunner(executable: lister)
-            .stream(arguments) { state.consume($0) }
+            .stream(arguments, pipedInput: Self.passwordInput(for: password)) { state.consume($0) }
         state.finish()
         if Task.isCancelled { throw ArchiveError.cancelled }
 
@@ -133,7 +132,9 @@ public struct RarFallbackEngine: Sendable {
         scoped.destinationURL = target
         let state = UnarOutputState(totalBytes: request.totalUncompressedSize, report: progress)
         let (exitCode, errorData) = try await SevenZipRunner(executable: extractor)
-            .stream(Self.extractionArguments(for: scoped)) { state.consume($0) }
+            .stream(Self.extractionArguments(for: scoped), pipedInput: Self.passwordInput(for: request.password)) {
+                state.consume($0)
+            }
         state.finish()
 
         if Task.isCancelled { throw ArchiveError.cancelled }
@@ -165,6 +166,23 @@ public struct RarFallbackEngine: Sendable {
         )
     }
 
+    /// The bundled `lsar`/`unar` carry a patch (see `ThirdParty/unar/`) that adds
+    /// `-password-stdin`, so the password never has to be on the command line,
+    /// where any user of the Mac could read it with `ps`. The one thing a line
+    /// of input cannot carry is a line break, so such a password keeps `-p`.
+    static func passwordArguments(_ password: String?) -> [String] {
+        guard let password, !password.isEmpty else { return [] }
+        return passwordInput(for: password) != nil ? ["-password-stdin"] : ["-p", password]
+    }
+
+    /// The text to write to `unar`/`lsar`'s standard input, if the password can go that way.
+    static func passwordInput(for password: String?) -> String? {
+        guard let password, !password.isEmpty,
+              !password.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0.value == 0 })
+        else { return nil }
+        return password + "\n"
+    }
+
     /// Never interactive: `unar` asks on a conflict unless told otherwise.
     static func extractionArguments(for request: ExtractionRequest) -> [String] {
         var arguments = ["-D", "-o", request.destinationURL.path]
@@ -173,9 +191,7 @@ public struct RarFallbackEngine: Sendable {
         case .skip: arguments.append("-s")
         case .rename: arguments.append("-r")
         }
-        if let password = request.password, !password.isEmpty {
-            arguments += ["-p", password]
-        }
+        arguments += passwordArguments(request.password)
         // Like 7-Zip, don't expand archives found inside the archive.
         arguments.append("-nr")
         arguments.append(request.archiveURL.path)
