@@ -404,9 +404,14 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // "--" so an entry name starting with "-" is never misread as a
         // 7zz flag — see the matching comment in `extract`.
         arguments.append("--")
-        arguments.append(contentsOf: paths)
-        let result = try await runner.run(arguments)
-        try Self.throwIfFatal(result, operation: "Delete", url: url)
+        // In batches, so removing thousands of entries (e.g. every `.DS_Store`
+        // of a big archive) can't overflow the command line.
+        let batchSize = 400
+        for start in stride(from: 0, to: paths.count, by: batchSize) {
+            let batch = Array(paths[start..<min(start + batchSize, paths.count)])
+            let result = try await runner.run(arguments + batch)
+            try Self.throwIfFatal(result, operation: "Delete", url: url)
+        }
         ArchiveLog.service.info("Delete finished for \(url.lastPathComponent, privacy: .public)")
     }
 

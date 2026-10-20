@@ -53,6 +53,8 @@ struct SevenZip4MacApp: App {
             CommandMenu("Tools") {
                 Button("Benchmark…") { openWindow(id: "benchmark") }
                     .keyboardShortcut("b", modifiers: [.command, .shift])
+                Button("Remove macOS Junk Files…") { focusedViewModel?.requestJunkRemoval() }
+                    .disabled(!(focusedViewModel?.canRemoveMacOSJunk ?? false))
             }
             CommandGroup(replacing: .newItem) {
                 Button("New Archive…") {

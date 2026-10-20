@@ -5,7 +5,7 @@ feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drive
 the official, unmodified `7zz` engine, which is bundled inside the application
 (plus a small fallback for damaged multi-part RAR sets — see below).
 
-> Status: **v1.7.30**
+> Status: **v1.7.31**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -24,6 +24,11 @@ the official, unmodified `7zz` engine, which is bundled inside the application
   compression profiles.
 - **Edit archives in place** — Add, Rename, Move, Copy and Delete entries inside
   an already-created archive, without a full re-compress.
+- **Remove macOS junk** — Tools ▸ Remove macOS Junk Files… deletes the clutter
+  macOS adds to ZIPs it creates (`__MACOSX/`, `._*`, `.DS_Store` and a few other
+  metadata items) from a `.zip`, `.7z` or `.tar` in one step, after a
+  confirmation that says how many files it will remove. To just see them, turn on
+  Settings ▸ General ▸ Browsing ▸ Show hidden items.
 - **Password-protected archives**: the password is asked for and kept only in
   memory for that session (never written to disk), with a button to show or hide
   what is typed; the prompt caps out at 3 attempts before resetting the window.

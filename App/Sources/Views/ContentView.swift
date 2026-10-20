@@ -639,6 +639,15 @@ private struct EditAlerts: ViewModifier {
             } message: { message in
                 Text(message)
             }
+            .alert("Remove macOS Junk?", isPresented: junkConfirmPresented, presenting: viewModel.pendingJunkRemoval) { _ in
+                Button("Remove", role: .destructive) {
+                    viewModel.confirmJunkRemoval()
+                    selection = []
+                }
+                Button("Cancel", role: .cancel) { viewModel.cancelJunkRemoval() }
+            } message: { request in
+                Text(junkConfirmMessage(for: request))
+            }
             .alert("Delete Item?", isPresented: deleteConfirmPresented, presenting: pendingDeletePaths) { paths in
                 Button("Delete", role: .destructive) {
                     viewModel.deleteEntries(paths: paths, notifySuccess: notifySuccess)
@@ -653,6 +662,17 @@ private struct EditAlerts: ViewModifier {
 
     private var editPresented: Binding<Bool> {
         Binding(get: { viewModel.editMessage != nil }, set: { if !$0 { viewModel.dismissEdit() } })
+    }
+
+    private var junkConfirmPresented: Binding<Bool> {
+        Binding(get: { viewModel.pendingJunkRemoval != nil }, set: { if !$0 { viewModel.cancelJunkRemoval() } })
+    }
+
+    private func junkConfirmMessage(for request: MacOSJunk.Summary) -> String {
+        let what = request.fileCount == 0
+            ? "The empty macOS junk folders"
+            : "\(request.fileCount) macOS junk file\(request.fileCount == 1 ? "" : "s")"
+        return "\(what) (\(request.exampleNames.joined(separator: ", "))) will be permanently removed from the archive. Your own files are not touched."
     }
 
     private var deleteConfirmPresented: Binding<Bool> {
