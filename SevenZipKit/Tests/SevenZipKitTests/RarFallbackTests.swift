@@ -82,7 +82,8 @@ final class RarFallbackUnitTests: XCTestCase {
             selectedPaths: ["-weird[1].txt", "dir"]
         )
         let arguments = RarFallbackEngine.extractionArguments(for: request)
-        XCTAssertTrue(arguments.contains("pw"))
+        XCTAssertTrue(arguments.contains("-password-stdin"))
+        XCTAssertFalse(arguments.contains("pw"), "the password must not be on the command line")
         let tail = Array(arguments.drop { $0 != "--" })
         XCTAssertEqual(tail, ["--", #"-weird\[1\].txt"#, #"-weird\[1\].txt/*"#, "dir", "dir/*"])
     }

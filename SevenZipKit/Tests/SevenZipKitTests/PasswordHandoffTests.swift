@@ -1,3 +1,4 @@
+import XCTest
 import Foundation
 import Testing
 @testable import SevenZipKit
@@ -131,5 +132,70 @@ struct UnpackedTooLargeTests {
     func defaultLimitIsSane() {
         let limit = ArchiveService.defaultUnwrapLimit(for: FileManager.default.temporaryDirectory)
         #expect(limit >= 256 << 20)
+    }
+}
+
+/// The fallback engine's password never reaches its command line.
+final class RarFallbackPasswordTests: XCTestCase {
+    func testPasswordGoesOnStdinNotTheCommandLine() {
+        XCTAssertEqual(RarFallbackEngine.passwordArguments("s3cret"), ["-password-stdin"])
+        XCTAssertEqual(RarFallbackEngine.passwordInput(for: "s3cret"), "s3cret\n")
+        XCTAssertEqual(RarFallbackEngine.passwordArguments(nil), [])
+        XCTAssertEqual(RarFallbackEngine.passwordArguments(""), [])
+        XCTAssertNil(RarFallbackEngine.passwordInput(for: ""))
+    }
+
+    func testAPasswordWithALineBreakKeepsTheOldForm() {
+        XCTAssertEqual(RarFallbackEngine.passwordArguments("a\nb"), ["-p", "a\nb"])
+        XCTAssertNil(RarFallbackEngine.passwordInput(for: "a\nb"))
+    }
+
+    func testExtractionArgumentsCarryNoSecret() {
+        var request = ExtractionRequest(
+            archiveURL: URL(fileURLWithPath: "/tmp/x.part01.rar"),
+            destinationURL: URL(fileURLWithPath: "/tmp/out"), password: "s3cret", selectedPaths: []
+        )
+        request.overwritePolicy = .overwrite
+        let arguments = RarFallbackEngine.extractionArguments(for: request)
+        XCTAssertTrue(arguments.contains("-password-stdin"))
+        XCTAssertFalse(arguments.contains("s3cret"))
+    }
+
+    /// Real `unar`/`lsar` from the app bundle: list, test and extract an encrypted
+    /// archive with the password on stdin only (ZIP, since no RAR can be made here).
+    func testBundledToolsAcceptThePasswordOnStdin() async throws {
+        let engineDir = SevenZipEngine.url.deletingLastPathComponent()
+        let lsar = engineDir.appendingPathComponent("lsar"), unar = engineDir.appendingPathComponent("unar")
+        guard FileManager.default.isExecutableFile(atPath: unar.path) else { throw XCTSkip("bundled unar not found") }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("7zk-unarpw-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("root"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "alpha".write(to: dir.appendingPathComponent("root/a.txt"), atomically: true, encoding: .utf8)
+        let zip = dir.appendingPathComponent("p.zip")
+        let password = "p ss'\"w0rd $1"
+        let service = ArchiveService(executable: try SevenZipExecutable(validatingURL: SevenZipEngine.url))
+        try await service.compress(
+            CompressionRequest(destinationURL: zip, sourceURLs: [dir.appendingPathComponent("root")],
+                               format: .zip, level: .fast, password: password),
+            progress: { _ in }
+        )
+
+        let engine = RarFallbackEngine(
+            lister: try SevenZipExecutable(validatingURL: lsar), extractor: try SevenZipExecutable(validatingURL: unar)
+        )
+        let (_, entries) = try await engine.list(archiveAt: zip, password: password)
+        XCTAssertFalse(entries.isEmpty)
+        try await engine.test(archiveAt: zip, selectedPaths: [], password: password)
+        let out = dir.appendingPathComponent("out")
+        try await engine.extract(
+            ExtractionRequest(archiveURL: zip, destinationURL: out, password: password, selectedPaths: []),
+            progress: { _ in }
+        )
+        XCTAssertEqual(try String(contentsOf: out.appendingPathComponent("root/a.txt"), encoding: .utf8), "alpha")
+        // Wrong password must fail, not hang waiting for input.
+        do {
+            try await engine.test(archiveAt: zip, selectedPaths: [], password: "wrong")
+            XCTFail("a wrong password must not pass")
+        } catch {}
     }
 }

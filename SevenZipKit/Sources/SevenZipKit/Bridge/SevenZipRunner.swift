@@ -135,7 +135,8 @@ public struct SevenZipRunner: Sendable {
         _ arguments: [String],
         executableURL: URL,
         workingDirectory: URL?,
-        input: TerminalInput?
+        input: TerminalInput?,
+        pipedInput: String?
     ) -> (process: Process, outputPipe: Pipe, errorBox: DataBox, errorDone: DispatchSemaphore, errorThread: Thread) {
         let process = Process()
         process.executableURL = executableURL
@@ -148,7 +149,16 @@ public struct SevenZipRunner: Sendable {
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
         process.standardError = errorPipe
-        process.standardInput = input?.slave ?? FileHandle.nullDevice
+        if let pipedInput {
+            // Small enough to sit in the pipe's buffer, so it can be written
+            // and closed up front: the engine reads it, then sees end-of-file.
+            let inputPipe = Pipe()
+            inputPipe.fileHandleForWriting.write(Data(pipedInput.utf8))
+            try? inputPipe.fileHandleForWriting.close()
+            process.standardInput = inputPipe
+        } else {
+            process.standardInput = input?.slave ?? FileHandle.nullDevice
+        }
 
         let errorBox = DataBox()
         let errorDone = DispatchSemaphore(value: 0)
@@ -168,14 +178,15 @@ public struct SevenZipRunner: Sendable {
     /// - Parameter arguments: Arguments passed verbatim to `7zz`.
     /// - Returns: The captured ``ProcessResult``.
     /// - Throws: ``ArchiveError/launchFailed(reason:)`` if the process cannot start.
-    public func run(_ arguments: [String], input: String? = nil) async throws -> ProcessResult {
+    public func run(_ arguments: [String], input: String? = nil, pipedInput: String? = nil) async throws -> ProcessResult {
         let executableURL = executable.url
         return try await withCheckedThrowingContinuation { continuation in
             Thread.detachNewThread {
                 let terminal = input.flatMap { TerminalInput(text: $0) }
                 defer { terminal?.close() }
                 let (process, outputPipe, errorBox, errorDone, errorThread) = Self.makeProcess(
-                    arguments, executableURL: executableURL, workingDirectory: nil, input: terminal
+                    arguments, executableURL: executableURL, workingDirectory: nil, input: terminal,
+                    pipedInput: pipedInput
                 )
 
                 do {
@@ -219,6 +230,7 @@ public struct SevenZipRunner: Sendable {
         _ arguments: [String],
         workingDirectory: URL? = nil,
         input: String? = nil,
+        pipedInput: String? = nil,
         onOutput: @escaping @Sendable (String) -> Void
     ) async throws -> (exitCode: Int32, standardError: Data) {
         let executableURL = executable.url
@@ -231,7 +243,7 @@ public struct SevenZipRunner: Sendable {
                     defer { terminal?.close() }
                     let (process, outputPipe, errorBox, errorDone, errorThread) = Self.makeProcess(
                         arguments, executableURL: executableURL, workingDirectory: workingDirectory,
-                        input: terminal
+                        input: terminal, pipedInput: pipedInput
                     )
 
                     do {

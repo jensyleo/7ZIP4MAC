@@ -3,6 +3,17 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.33] — 2026-10-20
+
+### Security
+- Passwords for damaged multi-part RAR sets are no longer on the command line either. The bundled `lsar`/`unar` (The Unarchiver's command-line tools, which only took `-p SECRET`) are now a modified build with a new `-password-stdin` option, and the app gives them the password on standard input. Together with 1.7.32, no password is visible to other users of the Mac any more (a password containing a line break still uses the old form).
+
+### Licensing
+- The bundled `lsar`/`unar` are no longer the stock binaries, so this release says so and ships the corresponding source: the patches (`unar-password-stdin.patch`, `unar-build-libcxx.patch`) are inside the app next to the tools, the repository has them with a build script and the exact upstream versions and checksums in `ThirdParty/unar/`, and the patched source tree is attached to the release. XADMaster 1.10.7 and universal-detector 1.1 stay under the LGPL 2.1 or later; the tools still run as separate programs. The changed source files carry a notice of the modification. This is not a build made or endorsed by MacPaw.
+
+### Internal
+- Added tests that run the real bundled `unar`/`lsar` with the password on standard input (list, test, extract, wrong password).
+
 ## [1.7.32] — 2026-10-20
 
 ### Security
