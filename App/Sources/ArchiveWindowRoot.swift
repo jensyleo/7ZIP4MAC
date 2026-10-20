@@ -44,8 +44,8 @@ struct ArchiveWindowRoot: View {
         ContentView(viewModel: viewModel, compression: compression,
                     settings: settings, profileStore: profileStore, recents: recents,
                     quickLookController: quickLookController)
-            .focusedValue(\.archiveViewModel, viewModel)
-            .focusedValue(\.compressionViewModel, compression)
+            .focusedSceneValue(\.archiveViewModel, viewModel)
+            .focusedSceneValue(\.compressionViewModel, compression)
             .background(WindowAccessor { window in
                 hostWindow = window
                 if quickLookController == nil {

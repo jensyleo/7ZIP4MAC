@@ -3,6 +3,18 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.31] — 2026-10-20
+
+### Added
+- **Tools ▸ Remove macOS Junk Files…** removes the clutter macOS adds to ZIPs it creates (`__MACOSX/`, `._*`, `.DS_Store` and a few other metadata items) from a `.zip`, `.7z` or `.tar` in one step, after a confirmation that says how many files will go. Names that 7-Zip would read as wildcards (`*`, `?`) are never offered.
+
+### Fixed
+- "Show hidden items" no longer hides real entries whose name merely starts with `__`; only names starting with `.` and `__MACOSX` count as hidden, so the junk can now be seen and managed.
+- A delete that fails partway (it runs in batches) now reloads the archive so the list shows what is really inside.
+
+### Internal
+- The junk summary is computed once when an archive is loaded or reloaded, not on every re-sort. Added tests, including real 7-Zip removal of 1,000 junk files.
+
 ## [1.7.30] — 2026-10-08
 
 ### Security
