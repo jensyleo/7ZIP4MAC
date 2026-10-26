@@ -219,6 +219,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>arj.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>arj</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>ARJ Archive</string>
 			<key>CFBundleTypeRole</key>
@@ -233,6 +237,11 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>lzh.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>lzh</string>
+				<string>lha</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>LZH Archive</string>
 			<key>CFBundleTypeRole</key>
@@ -247,6 +256,12 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>wim.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>wim</string>
+				<string>swm</string>
+				<string>esd</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Windows Imaging Format</string>
 			<key>CFBundleTypeRole</key>
@@ -261,6 +276,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>rpm.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>rpm</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>RPM Package</string>
 			<key>CFBundleTypeRole</key>
@@ -275,6 +294,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>deb.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>deb</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Debian Package</string>
 			<key>CFBundleTypeRole</key>
@@ -289,6 +312,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>chm.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>chm</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Compiled HTML Help</string>
 			<key>CFBundleTypeRole</key>
@@ -303,6 +330,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>nsis.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>nsis</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>NSIS Installer</string>
 			<key>CFBundleTypeRole</key>
@@ -317,6 +348,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>lzma.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>lzma</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>LZMA Archive</string>
 			<key>CFBundleTypeRole</key>
@@ -331,6 +366,11 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>ar.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ar</string>
+				<string>a</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Unix ar Archive</string>
 			<key>CFBundleTypeRole</key>
@@ -345,6 +385,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>squashfs.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>squashfs</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>SquashFS Image</string>
 			<key>CFBundleTypeRole</key>
@@ -359,6 +403,13 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>ext.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ext</string>
+				<string>ext2</string>
+				<string>ext3</string>
+				<string>ext4</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>ext Filesystem Image</string>
 			<key>CFBundleTypeRole</key>
@@ -373,6 +424,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>fat.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>fat</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>FAT Filesystem Image</string>
 			<key>CFBundleTypeRole</key>
@@ -387,6 +442,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>ntfs.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ntfs</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>NTFS Filesystem Image</string>
 			<key>CFBundleTypeRole</key>
@@ -401,6 +460,11 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>hfs.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>hfs</string>
+				<string>hfsx</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>HFS+ Filesystem Image</string>
 			<key>CFBundleTypeRole</key>
@@ -415,6 +479,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>apfs.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>apfs</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>APFS Filesystem Image</string>
 			<key>CFBundleTypeRole</key>
@@ -429,6 +497,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>vhd.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>vhd</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Virtual Hard Disk</string>
 			<key>CFBundleTypeRole</key>
@@ -443,6 +515,11 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>vhdx.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>vhdx</string>
+				<string>avhdx</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Virtual Hard Disk v2</string>
 			<key>CFBundleTypeRole</key>
@@ -457,6 +534,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>vmdk.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>vmdk</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>VMware Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -471,6 +552,12 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>qcow.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>qcow</string>
+				<string>qcow2</string>
+				<string>qcow2c</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>QEMU Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -485,6 +572,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>vdi.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>vdi</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>VirtualBox Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -499,6 +590,10 @@
 		<dict>
 			<key>CFBundleTypeIconFile</key>
 			<string>udf.icns</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>udf</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>UDF Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -549,6 +644,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>ARJ Archive</string>
@@ -568,6 +664,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>LZH Archive</string>
@@ -588,6 +685,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Windows Imaging Format</string>
@@ -609,6 +707,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>RPM Package</string>
@@ -628,6 +727,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Debian Package</string>
@@ -647,6 +747,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Compiled HTML Help</string>
@@ -666,6 +767,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>NSIS Installer</string>
@@ -685,6 +787,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>LZMA Archive</string>
@@ -704,6 +807,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.archive</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Unix ar Archive</string>
@@ -716,6 +820,7 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>ar</string>
+					<string>a</string>
 				</array>
 			</dict>
 		</dict>
@@ -723,6 +828,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>SquashFS Image</string>
@@ -742,6 +848,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>ext Filesystem Image</string>
@@ -764,6 +871,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>FAT Filesystem Image</string>
@@ -783,6 +891,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>NTFS Filesystem Image</string>
@@ -802,6 +911,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>HFS+ Filesystem Image</string>
@@ -822,6 +932,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>APFS Filesystem Image</string>
@@ -841,6 +952,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Virtual Hard Disk</string>
@@ -860,6 +972,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Virtual Hard Disk v2</string>
@@ -880,6 +993,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>VMware Disk Image</string>
@@ -899,6 +1013,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>QEMU Disk Image</string>
@@ -920,6 +1035,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>VirtualBox Disk Image</string>
@@ -939,6 +1055,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.disk-image</string>
+				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>UDF Disk Image</string>
