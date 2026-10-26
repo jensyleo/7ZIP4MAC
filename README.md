@@ -5,7 +5,7 @@ feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drive
 the official, unmodified `7zz` engine, which is bundled inside the application
 (plus a small fallback for damaged multi-part RAR sets — see below).
 
-> Status: **v1.7.33**
+> Status: **v1.7.34**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 

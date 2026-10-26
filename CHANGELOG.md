@@ -3,6 +3,17 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.34] — 2026-10-26
+
+### Changed
+- The icons of the filesystem and virtual-disk formats (APFS, ext, FAT, HFS, NTFS, QCOW, SquashFS, UDF, VDI, VHD, VHDX, VMDK) are redrawn in the same document style as the rest of the app's file icons, with a green label, instead of the full-bleed drive drawing that did not match.
+
+### Added
+- `.a` (static libraries, which are `ar` archives) is now recognised as an AR archive, so it gets the AR icon and is offered the app in "Open With". 7-Zip already lists their members.
+
+### Fixed
+- Files of the formats 7ZIP4MAC declares itself (SquashFS, WIM, VHD/VHDX, VMDK, VDI, QCOW, ext, RPM, DEB, CHM, LZH, ARJ and the other disk images and archives macOS has no built-in type for) showed the generic "unknown" icon and were not offered the app in "Open With" until the user associated them by hand. The cause was in the type declarations: they did not descend from `public.data`, so macOS gave up on them and treated each file as an anonymous type. They now do, and their document types also list the filename extensions. After updating, open the app once; if Finder still shows the old icon, relaunch Finder (`killall Finder`) or restart the Mac. A format you had forced to open with the app can be set again in Settings ▸ File Types.
+
 ## [1.7.33] — 2026-10-20
 
 ### Security
