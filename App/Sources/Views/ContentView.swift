@@ -105,9 +105,9 @@ struct ContentView: View {
         .sheet(isPresented: editProgressSheetPresented) {
             if let progress = viewModel.editProgress {
                 ProgressPanelView(
-                    title: "Updating \(viewModel.archiveURL?.lastPathComponent ?? "archive")",
+                    title: editProgressTitle,
                     progress: progress,
-                    onCancel: viewModel.cancelEdit
+                    onCancel: editProgressCancel
                 )
             }
         }
@@ -289,6 +289,16 @@ struct ContentView: View {
 
     private var extractionSheetPresented: Binding<Bool> {
         Binding(get: { viewModel.isExtracting }, set: { if !$0 { viewModel.cancelExtraction() } })
+    }
+
+    private var editProgressTitle: String {
+        let name = viewModel.archiveURL?.lastPathComponent ?? "archive"
+        return viewModel.isDeletingEntries ? "Deleting from \(name)" : "Updating \(name)"
+    }
+
+    /// A Delete cannot be stopped safely, so its panel has no Cancel button.
+    private var editProgressCancel: (() -> Void)? {
+        viewModel.isDeletingEntries ? nil : { viewModel.cancelEdit() }
     }
 
     private var editProgressSheetPresented: Binding<Bool> {

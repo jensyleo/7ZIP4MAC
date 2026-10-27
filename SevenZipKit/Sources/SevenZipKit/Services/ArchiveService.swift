@@ -37,11 +37,24 @@ public protocol ArchiveServing: Sendable {
     /// Deletes entries from an archive in place.
     func delete(archiveAt url: URL, paths: [String], password: String?) async throws
 
+    /// Same, reporting progress while the archive is rewritten.
+    func delete(
+        archiveAt url: URL, paths: [String], password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws
+
     /// Renames or moves an entry within an archive in place.
     func rename(archiveAt url: URL, from oldPath: String, to newPath: String, password: String?) async throws
 }
 
 public extension ArchiveServing {
+    func delete(
+        archiveAt url: URL, paths: [String], password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws {
+        try await delete(archiveAt: url, paths: paths, password: password)
+    }
+
     func test(
         archiveAt url: URL, selectedPaths: [String], password: String?,
         basis: TestProgressBasis?, progress: @escaping @Sendable (ProgressInfo) -> Void
@@ -248,6 +261,13 @@ public struct ArchiveService: ArchiveServing {
 
     public func delete(archiveAt url: URL, paths: [String], password: String? = nil) async throws {
         try await bridge.delete(archiveAt: url, paths: paths, password: password)
+    }
+
+    public func delete(
+        archiveAt url: URL, paths: [String], password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws {
+        try await bridge.delete(archiveAt: url, paths: paths, password: password, progress: progress)
     }
 
     public func rename(archiveAt url: URL, from oldPath: String, to newPath: String, password: String? = nil) async throws {

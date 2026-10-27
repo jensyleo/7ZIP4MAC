@@ -9,7 +9,8 @@ import SevenZipKit
 struct ProgressPanelView: View {
     let title: String
     let progress: ProgressInfo
-    let onCancel: () -> Void
+    /// `nil` hides the Cancel button, for work that cannot be stopped safely.
+    var onCancel: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -38,10 +39,12 @@ struct ProgressPanelView: View {
                 metric("Size", progress.displayBytes, systemImage: "internaldrive")
             }
 
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .keyboardShortcut(.cancelAction)
+            if let onCancel {
+                HStack {
+                    Spacer()
+                    Button("Cancel", role: .cancel, action: onCancel)
+                        .keyboardShortcut(.cancelAction)
+                }
             }
         }
         .padding(20)
