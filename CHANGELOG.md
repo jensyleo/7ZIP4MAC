@@ -3,6 +3,11 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.35] — 2026-10-27
+
+### Added
+- Deleting entries from inside an archive (and "Remove macOS Junk Files…") now shows a progress panel with percentage, speed, time remaining and the size being rewritten, instead of nothing until it finished. It follows both stretches of the work (building the new archive and putting it in place) and, for a large selection that is deleted in several passes, the whole operation. There is no Cancel button on purpose: 7-Zip rewrites the archive into a temporary file and stopping it halfway could leave the archive damaged.
+
 ## [1.7.34] — 2026-10-26
 
 ### Changed

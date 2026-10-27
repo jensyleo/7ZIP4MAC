@@ -49,6 +49,12 @@ public protocol SevenZipBridge: Sendable {
     /// Deletes entries from an archive in place, rewriting it without them.
     func delete(archiveAt url: URL, paths: [String], password: String?) async throws
 
+    /// Same, reporting progress while the archive is rewritten.
+    func delete(
+        archiveAt url: URL, paths: [String], password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws
+
     /// Renames or moves an entry within an archive in place (changing its
     /// path renames it; changing its parent folder moves it — 7-Zip's `rn`
     /// command does both the same way).
@@ -56,6 +62,14 @@ public protocol SevenZipBridge: Sendable {
 }
 
 public extension SevenZipBridge {
+    /// Bridges that can't report delete progress just run the plain delete.
+    func delete(
+        archiveAt url: URL, paths: [String], password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws {
+        try await delete(archiveAt: url, paths: paths, password: password)
+    }
+
     /// Bridges that can't report test progress simply run the plain test.
     func test(
         archiveAt url: URL, selectedPaths: [String], password: String?,
@@ -397,6 +411,13 @@ public struct SystemSevenZipBridge: SevenZipBridge {
     }
 
     public func delete(archiveAt url: URL, paths: [String], password: String?) async throws {
+        try await delete(archiveAt: url, paths: paths, password: password) { _ in }
+    }
+
+    public func delete(
+        archiveAt url: URL, paths: [String], password: String?,
+        progress: @escaping @Sendable (ProgressInfo) -> Void
+    ) async throws {
         try Self.requireExists(url)
         guard !paths.isEmpty else { return }
 
@@ -406,7 +427,7 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // prompt instead of treating it as "no password" — with no terminal
         // attached, that hangs until 7zz gives up ("Break signaled", exit 255).
         // So the flag is only included when there's an actual password.
-        var arguments = ["d", url.path, "-y"]
+        var arguments = ["d", url.path, "-y", "-bsp1"]
         var handoff: PasswordHandoff?
         if let password, !password.isEmpty {
             handoff = PasswordHandoff(password)
@@ -418,10 +439,20 @@ public struct SystemSevenZipBridge: SevenZipBridge {
         // In batches, so removing thousands of entries (e.g. every `.DS_Store`
         // of a big archive) can't overflow the command line.
         let batchSize = 400
-        for start in stride(from: 0, to: paths.count, by: batchSize) {
+        let starts = Array(stride(from: 0, to: paths.count, by: batchSize))
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0 }.map(UInt64.init) ?? 0
+        let state = DeleteProgressState(archiveSize: size, batches: starts.count, report: progress)
+        for (index, start) in starts.enumerated() {
             let batch = Array(paths[start..<min(start + batchSize, paths.count)])
-            let result = try await runner.run(arguments + batch, input: handoff?.input)
-            try Self.throwIfFatal(result, operation: "Delete", url: url)
+            state.startBatch(index)
+            let (exitCode, errorData) = try await runner.stream(arguments + batch, input: handoff?.input) { chunk in
+                state.consume(chunk)
+            }
+            try Self.throwIfFatal(
+                ProcessResult(exitCode: exitCode, standardOutput: Data(), standardError: errorData),
+                operation: "Delete", url: url
+            )
+            state.finishBatch()
         }
         ArchiveLog.service.info("Delete finished for \(url.lastPathComponent, privacy: .public)")
     }

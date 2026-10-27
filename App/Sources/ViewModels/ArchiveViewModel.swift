@@ -462,8 +462,14 @@ public final class ArchiveViewModel {
     public private(set) var editProgress: ProgressInfo?
     private var editTask: Task<Void, Never>?
 
-    /// Cancels a running Add or Copy.
+    /// Whether the running edit is a Delete. It cannot be cancelled: 7-Zip
+    /// rewrites the archive into a temporary file and then puts that in place,
+    /// and stopping it in the middle of that could leave the archive damaged.
+    public private(set) var isDeletingEntries = false
+
+    /// Cancels a running Add or Copy (never a Delete, see ``isDeletingEntries``).
     public func cancelEdit() {
+        guard !isDeletingEntries else { return }
         editTask?.cancel()
         editTask = nil
         editProgress = nil
@@ -565,11 +571,22 @@ public final class ArchiveViewModel {
             editMessage = Self.unwritableFormatMessage(for: archive)
             return
         }
+        guard !isDeletingEntries else { return }
+        isDeletingEntries = true
+        editProgress = .zero
         Task { [serviceProvider] in
+            defer {
+                self.isDeletingEntries = false
+                self.editProgress = nil
+            }
             do {
                 let service = try serviceProvider()
                 let password = self.sessionPassword
-                try await service.delete(archiveAt: archive.url, paths: paths, password: password)
+                try await service.delete(archiveAt: archive.url, paths: paths, password: password) { info in
+                    Task { @MainActor in
+                        if self.isDeletingEntries { self.editProgress = info }
+                    }
+                }
                 try await self.reload(url: archive.url, password: password)
                 guard notifySuccess else { return }
                 self.editMessage = successMessage ?? (paths.count == 1
