@@ -3,6 +3,11 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.36] — 2026-11-03
+
+### Fixed
+- Dragging a file out of an archive onto a network share (a Samba share on a PC or a NAS, for instance) could leave an empty file at the destination. The copy to the share failed on the file's extended attributes, which some shares refuse ("Operation not permitted"), after the empty file had been created. The copy now falls back to writing just the contents (keeping the modification date and the download marker where the share allows them), and a failed drag no longer leaves a 0-byte file behind.
+
 ## [1.7.35] — 2026-10-27
 
 ### Added

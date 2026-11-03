@@ -114,14 +114,14 @@ enum DragOut {
         }
         let total = Self.totalSize(of: source)
         guard total > 0 else {
-            try FileManager.default.copyItem(at: source, to: destination)
+            try ResilientCopy.copyItem(at: source, to: destination)
             try? FileManager.default.removeItem(at: source)
             progress(1, 1)
             return
         }
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                try FileManager.default.copyItem(at: source, to: destination)
+                try ResilientCopy.copyItem(at: source, to: destination)
             }
             group.addTask {
                 while !Task.isCancelled {
