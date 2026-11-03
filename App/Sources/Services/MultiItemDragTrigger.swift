@@ -128,6 +128,9 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
                 }
                 completionHandler(nil)
             } catch {
+                // Whatever is at `url` now is a partial copy (we cleared the
+                // spot before moving); leave nothing behind, not a 0-byte file.
+                try? FileManager.default.removeItem(at: url)
                 completionHandler(error)
             }
         }
