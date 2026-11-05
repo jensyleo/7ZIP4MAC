@@ -186,6 +186,7 @@ final class DragProgressPanelController {
         item.finish()
         activeCount -= 1
         guard activeCount <= 0 else { return }
+        panel?.parent?.removeChildWindow(panel!)
         panel?.close()
         panel = nil
         state = nil
@@ -215,15 +216,31 @@ final class DragProgressPanelController {
         )
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
-        panel.isFloatingPanel = true
-        panel.level = .floating
+        // Above this app's own windows, but not above other apps': a normal
+        // window level (not `.floating`, which sits over every app and stayed
+        // there when the user put another app on top — "la ventana de
+        // progreso queda por encima de todo", 2026-11-05) plus being a child
+        // of an archive window, which keeps it just above its parent.
+        panel.isFloatingPanel = false
+        panel.level = .normal
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.fullScreenAuxiliary]
         panel.contentView = NSHostingView(rootView: DragTransferView(state: state))
-        panel.center()
+        let parent = NSApp.keyWindow ?? NSApp.mainWindow
+            ?? NSApp.windows.first { $0.isVisible && !($0 is NSPanel) }
+        if let parent {
+            // Centre over the window it belongs to, then follow it.
+            panel.setFrameOrigin(NSPoint(
+                x: parent.frame.midX - panel.frame.width / 2,
+                y: parent.frame.midY - panel.frame.height / 2
+            ))
+        } else {
+            panel.center()
+        }
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+        parent?.addChildWindow(panel, ordered: .above)
         self.panel = panel
         return state
     }
