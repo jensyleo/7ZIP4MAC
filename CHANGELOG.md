@@ -3,6 +3,11 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.37] — 2026-11-05
+
+### Fixed
+- The progress window shown while dragging items out of an archive stayed on top of every application, so it could not be covered by another app. It now sits above the archive window it belongs to only, like any ordinary window: bring another app forward and it goes behind it.
+
 ## [1.7.36] — 2026-11-03
 
 ### Fixed
