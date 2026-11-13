@@ -3,6 +3,17 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.38] — 2026-11-13
+
+### Changed
+- Deleting entries from an archive (and "Remove macOS Junk Files…") now hands 7-Zip every name in one list file, so the archive is rewritten once however many entries go. It used to be rewritten once per 400 entries, which on a large archive or a network share multiplied the wait (about eight times slower on an 800 MB test archive, even on a local disk).
+
+### Fixed
+- Deleting an entry whose name contains `*` or `?` could also delete other entries that the name matched as a wildcard (deleting `star*.txt` removed `starX.txt` too). Names are now taken literally, as are names starting with `-` or `@`.
+
+### Internal
+- Added tests with the real 7-Zip engine: look-alike names in ZIP and 7z, a thousand entries in one pass, and an encrypted archive.
+
 ## [1.7.37] — 2026-11-05
 
 ### Fixed
