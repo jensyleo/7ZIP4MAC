@@ -5,7 +5,7 @@ feel like a first-party Apple application. 7ZIP4MAC is a frontend only: it drive
 the official, unmodified `7zz` engine, which is bundled inside the application
 (plus a small fallback for damaged multi-part RAR sets — see below).
 
-> Status: **v1.7.37**
+> Status: **v1.7.38**
 
 ![7ZIP4MAC screenshot](docs/screenshot.png)
 
@@ -131,7 +131,7 @@ Bundled 7-Zip engine: GNU LGPL (with the unRAR restriction on commercial use of
 the unRAR code), by Igor Pavlov — see `App/Resources/Engine/License.txt`.
 Bundled `lsar`/`unar` fallback (modified build): GNU LGPL 2.1 or later, by Dag Ågren
 and MacPaw — see `App/Resources/Engine/unar-LICENSE-LGPL-2.1.txt`, `unar-README.txt`
-and `ThirdParty/unar/README.md`.
+and `ThirdParty/unar/README.txt`.
 
 This program is free software: you can redistribute it and/or modify it under the
 terms of the **GNU General Public License, version 3**. It is distributed in the
