@@ -27,6 +27,8 @@ struct FileListView: View {
     /// presses kept re-selecting just anchor±1 instead of growing the range
     /// ("no permite seleccionar más [de una fila]" — 2026-09-16).
     @State private var focusedID: ArchiveEntry.ID?
+    @State private var typeSelectBuffer = ""
+    @State private var typeSelectTime: TimeInterval = 0
 
     /// The selection that existed *before* the current anchor's range started
     /// being extended — preserved underneath every Shift/Cmd-Shift range so
@@ -148,7 +150,10 @@ struct FileListView: View {
         deleteKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Don't hijack these keys while the user is typing in a text
             // field elsewhere (e.g. the Rename/Move prompt, or a Settings field).
-            if NSApp.keyWindow?.firstResponder is NSTextView { return event }
+            // Only an editable one: a read-only or leftover text view (the
+            // Inspector's selectable fields, a password field's editor that
+            // outlived its sheet) must not turn the arrow keys off.
+            if let textView = NSApp.keyWindow?.firstResponder as? NSTextView, textView.isEditable { return event }
 
             switch event.keyCode {
             case 0 where event.modifierFlags.contains(.command): // kVK_ANSI_A, ⌘A
@@ -165,6 +170,18 @@ struct FileListView: View {
                 return event
             case 51 where !selection.isEmpty, 117 where !selection.isEmpty: // kVK_Delete, kVK_ForwardDelete
                 onDeleteSelection()
+                return nil
+            case 115 where !viewModel.visibleEntries.isEmpty: // kVK_Home
+                jumpSelection(to: .first, extend: event.modifierFlags.contains(.shift))
+                return nil
+            case 119 where !viewModel.visibleEntries.isEmpty: // kVK_End
+                jumpSelection(to: .last, extend: event.modifierFlags.contains(.shift))
+                return nil
+            case 116 where !viewModel.visibleEntries.isEmpty: // kVK_PageUp
+                moveSelection(by: -pageSize(), extend: event.modifierFlags.contains(.shift))
+                return nil
+            case 121 where !viewModel.visibleEntries.isEmpty: // kVK_PageDown
+                moveSelection(by: pageSize(), extend: event.modifierFlags.contains(.shift))
                 return nil
             case 125 where !viewModel.visibleEntries.isEmpty: // kVK_DownArrow
                 if event.modifierFlags.contains([.command, .shift]) {
@@ -191,9 +208,80 @@ struct FileListView: View {
                 viewModel.goUp()
                 return nil
             default:
+                if typeSelect(event) { return nil }
                 return event
             }
         }
+    }
+
+    // MARK: - Keeping the keyboard cursor in view, jumping, type-to-select
+
+    /// The `NSTableView` behind the SwiftUI `Table` of the key window.
+    private func findTableView() -> NSTableView? {
+        func search(_ view: NSView) -> NSTableView? {
+            if let table = view as? NSTableView { return table }
+            for sub in view.subviews { if let found = search(sub) { return found } }
+            return nil
+        }
+        guard let content = NSApp.keyWindow?.contentView else { return nil }
+        return search(content)
+    }
+
+    /// Scrolls the row for `id` into view — SwiftUI's `Table` does not do it
+    /// for a selection changed from code, so a highlight moved by the keyboard
+    /// used to run off the bottom of the window.
+    private func scrollToRow(_ id: ArchiveEntry.ID) {
+        guard let row = viewModel.visibleEntries.firstIndex(where: { $0.id == id }),
+              let table = findTableView(), row < table.numberOfRows else { return }
+        table.scrollRowToVisible(row)
+    }
+
+    /// Rows a Page Up/Down moves: what fits on screen, less one for context.
+    private func pageSize() -> Int {
+        guard let table = findTableView(), table.rowHeight > 0 else { return 10 }
+        return max(1, Int(table.visibleRect.height / (table.rowHeight + table.intercellSpacing.height)) - 1)
+    }
+
+    private enum Edge { case first, last }
+
+    /// Home / End (⇧ extends the selection to there).
+    private func jumpSelection(to edge: Edge, extend: Bool) {
+        let rows = viewModel.visibleEntries.filter { !$0.isParentLink }
+        guard !rows.isEmpty else { return }
+        if extend {
+            extendSelectionToEdge(last: edge == .last)
+        } else {
+            let target = edge == .last ? rows[rows.count - 1] : rows[0]
+            focusedID = target.id
+            selection = [target.id]
+            selectionAnchor = target.id
+            baseSelection = []
+        }
+        if let id = focusedID { scrollToRow(id) }
+    }
+
+    /// Typing letters jumps to the first row whose name starts with what was
+    /// typed in the last second, like Finder. Returns whether the key was used.
+    private func typeSelect(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+              let typed = event.charactersIgnoringModifiers, typed.count == 1,
+              let scalar = typed.unicodeScalars.first,
+              !CharacterSet.controlCharacters.contains(scalar), typed != " " else { return false }
+        let now = event.timestamp
+        if now - typeSelectTime > 1 { typeSelectBuffer = "" }
+        typeSelectTime = now
+        typeSelectBuffer += typed.lowercased()
+        let rows = viewModel.visibleEntries.filter { !$0.isParentLink }
+        let match = rows.first { $0.name.lowercased().hasPrefix(typeSelectBuffer) }
+            ?? (typeSelectBuffer.count > 1 && Set(typeSelectBuffer).count == 1
+                ? rows.first { $0.name.lowercased().hasPrefix(String(typeSelectBuffer.prefix(1))) } : nil)
+        guard let entry = match else { return true }   // consumed: no beep, no stray shortcut
+        focusedID = entry.id
+        selection = [entry.id]
+        selectionAnchor = entry.id
+        baseSelection = []
+        scrollToRow(entry.id)
+        return true
     }
 
     /// Moves the selection up/down by `delta` row(s) among
@@ -236,6 +324,7 @@ struct FileListView: View {
             selectionAnchor = newEntry.id
             baseSelection = []
         }
+        scrollToRow(newEntry.id)
     }
 
     /// ⌘⇧↓ / ⌘⇧↑ — Finder's own "extend selection to the last/first item"
@@ -256,6 +345,7 @@ struct FileListView: View {
         }
         let edgeIndex = last ? rows.count - 1 : 0
         selection = baseSelection.union(Self.selectRange(from: anchorIndex, to: edgeIndex, in: rows))
+        scrollToRow(edgeEntry.id)
     }
 
     /// Builds a contiguous-range selection between two row indices (inclusive
