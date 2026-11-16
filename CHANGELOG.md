@@ -3,6 +3,16 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.39] — 2026-11-16
+
+### Fixed
+- Moving the selection with the keyboard no longer lets the highlighted row run off the edge of the window: the list scrolls to keep it in view (Up/Down, Shift-extend, ⌘⇧↑/↓, and the new keys below).
+- The arrow keys, Space, Return and Delete were ignored whenever a text view was the keyboard focus, even a read-only or leftover one (for example after unlocking a password-protected archive, or with the Inspector's selectable fields focused). They now stop only while the user is typing in an editable field.
+
+### Added
+- Home and End jump to the first and last row, Page Up and Page Down move by a screenful (Shift extends the selection for all four).
+- Type-to-select: typing the start of a name jumps to the first entry that begins with it, like Finder.
+
 ## [1.7.38] — 2026-11-13
 
 ### Changed
