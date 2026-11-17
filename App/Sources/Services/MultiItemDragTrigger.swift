@@ -99,7 +99,7 @@ private final class ArchiveEntryFilePromiseProvider: NSFilePromiseProvider, NSFi
         final class TaskBox: @unchecked Sendable { var task: Task<Void, Never>? }
         let box = TaskBox()
         box.task = Task { @MainActor in
-            let item = panelController.beginItem(itemName: entryName)
+            let item = panelController.beginItem(path: entryPath, itemName: entryName)
             item.onCancel = { box.task?.cancel() }
             defer { panelController.finishItem(item) }
             do {
@@ -201,7 +201,10 @@ final class MultiItemDragTriggerView: NSView, NSDraggingSource {
         let icon = NSWorkspace.shared.icon(for: .data)
         // One controller for every item of *this* drag, so a multi-selection
         // shows a single steady progress panel instead of one per item.
-        let panelController = DragProgressPanelController()
+        let listed = OpenArchiveWindowRegistry.viewModel(for: archiveURL)?.entries ?? []
+        let panelController = DragProgressPanelController(expected: entries.map { entry in
+            (path: entry.path, name: entry.name, bytes: DragOut.uncompressedSize(forEntryPath: entry.path, in: listed))
+        })
         let items: [NSDraggingItem] = entries.map { entry in
             let provider = ArchiveEntryFilePromiseProvider(
                 archiveURL: archiveURL,

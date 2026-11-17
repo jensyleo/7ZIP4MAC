@@ -3,6 +3,16 @@
 All notable changes to 7ZIP4MAC are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.40] — 2026-11-17
+
+### Fixed
+- The progress bar "danced" while extracting or dragging several entries out. Seen live with 30 entries of 80 MB: the percentage read 85% while the bar sat near the start, and the bar swept backwards when a new stage began. Three causes, all fixed:
+  - The system progress bar animates every change on its own clock and trailed far behind the number beside it. It is replaced by a bar drawn at exactly the figure shown, which snaps instead of sweeping backwards.
+  - Dragging many entries out opened a new panel for each file when Finder asked for them one after another and a quick file ended before the next began, so the bar restarted at zero each time. The panel now knows every dragged item and its size from the start, stays open until the last is done and measures against the whole selection. It stays up for a moment at 100% before closing.
+  - Progress updates could reach the window out of order, and the engine's own percentage could step back (for example between volumes). Every progress bar (extracting, testing, adding, copying, deleting, creating) now only moves forward, and copying an entry (extract, then add) fills the bar once instead of twice.
+- In the drag panel the speed and time remaining were wrong ("90 bytes/s", "183 h"), the speed estimator being reset by every item, and the size shown counted each file twice and shrank as the work went on. They now show the real speed, the time left and "2.4 GB of 2.4 GB".
+- Panel redraws are limited to ten a second so dozens of files reporting at once cannot keep the window from painting.
+
 ## [1.7.39] — 2026-11-16
 
 ### Fixed

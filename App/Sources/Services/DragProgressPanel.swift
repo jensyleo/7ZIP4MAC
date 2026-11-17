@@ -30,12 +30,12 @@ final class DragTransferState {
     private var latestFile: String?
     private var estimator = RateEstimator()
 
-    func register(name: String) -> UUID {
+    func register(name: String, expectedBytes: UInt64 = 0) -> UUID {
         let id = UUID()
         items[id] = ItemInfo(name: name)
         // Every drag-out item goes through two phases: extract, then move.
-        aggregator.register(id, phases: 2)
-        refresh()
+        aggregator.register(id, phases: 2, expectedTotal: expectedBytes)
+        refresh(force: true)
         return id
     }
 
@@ -44,10 +44,8 @@ final class DragTransferState {
         items[id]?.phase = phase
         if phase == .moving {
             aggregator.startNextPhase(id)
-            // Moving has its own speed; don't let the faster extraction skew it.
-            estimator.restart(processed: aggregator.snapshot().processed)
         }
-        refresh()
+        refresh(force: true)
     }
 
     func report(_ id: UUID, _ info: ProgressInfo) {
@@ -63,7 +61,7 @@ final class DragTransferState {
     func finish(_ id: UUID) {
         aggregator.finish(id)
         finishedCount += 1
-        refresh()
+        refresh(force: true)
     }
 
     /// The panel's single Cancel button stops every item of the drag.
@@ -71,14 +69,49 @@ final class DragTransferState {
         for item in items.values { item.onCancel?() }
     }
 
-    private func refresh() {
+    /// How often the panel redraws while bytes are flowing. Dozens of items
+    /// each report many times a second; publishing every one kept the main
+    /// thread so busy that the bar painted late — the number said 85% while
+    /// the bar was still near the start ("la barra baila").
+    private static let publishInterval: TimeInterval = 0.1
+    private var lastPublish = Date.distantPast
+    private var pendingPublish: Task<Void, Never>?
+
+    /// Publishes now when `force` (a structural change) or when enough time
+    /// has passed; otherwise schedules one trailing publish so the last
+    /// figure is never lost.
+    private func refresh(force: Bool = false) {
+        let elapsed = Date.now.timeIntervalSince(lastPublish)
+        if force || elapsed >= Self.publishInterval {
+            pendingPublish?.cancel()
+            pendingPublish = nil
+            publish()
+            return
+        }
+        guard pendingPublish == nil else { return }
+        pendingPublish = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(Int((Self.publishInterval - elapsed) * 1000) + 1))
+            guard !Task.isCancelled, let self else { return }
+            self.pendingPublish = nil
+            self.publish()
+        }
+    }
+
+    private func publish() {
+        lastPublish = .now
         let snapshot = aggregator.snapshot()
-        let rate = estimator.rate(processed: snapshot.processed)
-        let remaining = RateEstimator.remaining(total: snapshot.total, processed: snapshot.processed, rate: rate)
+        // Every item is counted twice (extract, then move). The bar needs that;
+        // the sizes and the speed shown are the data itself — half — so "Size"
+        // reads 2.4 GB of 2.4 GB, not a total that shrinks as phases are
+        // measured, and the time left follows the end-to-end speed.
+        let processed = snapshot.processed / 2
+        let total = snapshot.total / 2
+        let rate = estimator.rate(processed: processed)
+        let remaining = RateEstimator.remaining(total: total, processed: processed, rate: rate)
         progress = ProgressInfo(
             fractionCompleted: snapshot.fraction,
-            processedBytes: snapshot.processed,
-            totalBytes: snapshot.total,
+            processedBytes: processed,
+            totalBytes: total,
             bytesPerSecond: rate,
             estimatedTimeRemaining: remaining,
             currentFile: latestFile
@@ -105,6 +138,12 @@ final class DragTransferItem {
     fileprivate init(name: String, state: DragTransferState) {
         self.state = state
         self.id = state.register(name: name)
+    }
+
+    /// An item that was registered up front.
+    fileprivate init(id: UUID, state: DragTransferState) {
+        self.state = state
+        self.id = id
     }
 
     /// Set once the underlying `Task` exists, so the panel's Cancel button
@@ -169,28 +208,52 @@ final class DragProgressPanelController {
     private var panel: NSPanel?
     private var state: DragTransferState?
     private var activeCount = 0
+    private var finishedCount = 0
+
+    /// Every item of this drag — path, name and size — known when the drag
+    /// starts. Finder asks for the files one after another, so without this a
+    /// quick item could finish before the next had begun, the panel would
+    /// close with it, and the next item would open a new panel with the bar
+    /// back at zero ("la barra regresa a cero con cada archivo").
+    private let expected: [(path: String, name: String, bytes: UInt64)]
+    private var preregistered: [String: UUID] = [:]
 
     private let limiter = SlotLimiter(limit: 2)
 
+    init(expected: [(path: String, name: String, bytes: UInt64)] = []) {
+        self.expected = expected
+    }
+
     /// Call once per item about to be extracted/moved. Creates and activates
     /// the panel for the first item of this drag; later items reuse it.
-    func beginItem(itemName: String) -> DragTransferItem {
+    func beginItem(path: String, itemName: String) -> DragTransferItem {
         activeCount += 1
-        return DragTransferItem(name: itemName, state: state ?? makePanel())
+        let state = state ?? makePanel()
+        if let id = preregistered[path] {
+            return DragTransferItem(id: id, state: state)
+        }
+        return DragTransferItem(name: itemName, state: state)
     }
 
     /// Call once per item when its transfer ends (success or failure). Only
-    /// closes the panel once every item this controller is tracking has
-    /// finished.
+    /// closes the panel once every item of the drag has finished.
     func finishItem(_ item: DragTransferItem) {
         item.finish()
         activeCount -= 1
-        guard activeCount <= 0 else { return }
-        panel?.parent?.removeChildWindow(panel!)
-        panel?.close()
+        finishedCount += 1
+        let allDone = expected.isEmpty ? activeCount <= 0 : finishedCount >= expected.count
+        guard allDone else { return }
+        // Leave the finished panel — at 100% — up for a moment before it goes,
+        // so the end of the transfer is seen to reach the end.
+        let closing = panel
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            closing?.close()
+        }
         panel = nil
         state = nil
         activeCount = 0
+        finishedCount = 0
     }
 
     /// Waits for one of the extraction slots. Throws `CancellationError` —
@@ -208,6 +271,10 @@ final class DragProgressPanelController {
     private func makePanel() -> DragTransferState {
         let state = DragTransferState()
         self.state = state
+        preregistered = [:]
+        for item in expected {
+            preregistered[item.path] = state.register(name: item.name, expectedBytes: item.bytes)
+        }
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 460, height: 200),
             styleMask: [.titled, .fullSizeContentView, .utilityWindow],

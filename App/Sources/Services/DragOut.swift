@@ -83,7 +83,7 @@ enum DragOut {
     /// can report a real percentage/ETA instead of an indeterminate one.
     /// `entries` comes from the source window's already-loaded listing, not
     /// a fresh read, so this is just arithmetic over what's already in memory.
-    private static func uncompressedSize(forEntryPath entryPath: String, in entries: [ArchiveEntry]) -> UInt64 {
+    static func uncompressedSize(forEntryPath entryPath: String, in entries: [ArchiveEntry]) -> UInt64 {
         let prefix = entryPath + "/"
         return entries.lazy
             .filter { !$0.isDirectory && ($0.path == entryPath || $0.path.hasPrefix(prefix)) }
