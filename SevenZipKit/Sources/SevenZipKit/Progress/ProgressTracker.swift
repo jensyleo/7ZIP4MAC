@@ -15,6 +15,9 @@ public struct ProgressTracker: Sendable {
     private var lastTime: TimeInterval?
     private var lastProcessedBytes: UInt64 = 0
     private var smoothedBytesPerSecond: Double = 0
+    /// The engine's percentage can step back (a new volume, a re-scan of a
+    /// solid block); the bar must not.
+    private var highestFraction = 0.0
 
     public init(totalBytes: UInt64, smoothing: Double = 0.3) {
         self.totalBytes = totalBytes
@@ -28,7 +31,8 @@ public struct ProgressTracker: Sendable {
     ///   - now: Current time as an absolute interval (e.g. `Date().timeIntervalSinceReferenceDate`).
     ///   - currentFile: File the engine is processing, if known.
     public mutating func update(percent: Int, now: TimeInterval, currentFile: String?) -> ProgressInfo {
-        let fraction = min(max(Double(percent) / 100.0, 0), 1)
+        let fraction = max(min(max(Double(percent) / 100.0, 0), 1), highestFraction)
+        highestFraction = fraction
         let processed = totalBytes > 0 ? UInt64(fraction * Double(totalBytes)) : 0
 
         if startTime == nil {

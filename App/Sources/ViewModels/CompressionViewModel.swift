@@ -134,7 +134,9 @@ public final class CompressionViewModel {
                 let service = try serviceProvider()
                 try await service.compress(request) { info in
                     Task { @MainActor in
-                        if case .running = self.phase { self.phase = .running(info) }
+                        if case .running(let current) = self.phase, let next = info.advancing(from: current) {
+                            self.phase = .running(next)
+                        }
                     }
                 }
                 if Task.isCancelled { return }

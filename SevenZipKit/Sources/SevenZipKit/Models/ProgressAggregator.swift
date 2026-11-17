@@ -34,9 +34,16 @@ public struct ProgressAggregator: Sendable {
 
     public init() {}
 
-    public mutating func register(_ id: UUID, phases: Int = 1) {
+    /// - Parameter expectedTotal: The item's size when it is known up front
+    ///   (a drag-out knows every entry's size from the listing). Registering
+    ///   all items with their sizes from the start gives the combined figure a
+    ///   steady denominator; without it the total grows as each item begins,
+    ///   and the bar's share of the whole shrinks as it goes.
+    public mutating func register(_ id: UUID, phases: Int = 1, expectedTotal: UInt64 = 0) {
         var item = Item()
         item.phases = max(1, phases)
+        item.total = expectedTotal
+        item.firstPhaseTotal = expectedTotal
         items[id] = item
     }
 
